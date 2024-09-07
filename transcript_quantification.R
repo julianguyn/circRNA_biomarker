@@ -248,3 +248,93 @@ write.table(fcrc_gcsi_sub, file = "../data/processed_cellline/common_samples/fin
 write.table(fcrc_gdsc_sub, file = "../data/processed_cellline/common_samples/find_circ/fcrc_gdsc_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
 write.table(fcrc_ccle_sub, file = "../data/processed_cellline/common_samples/find_circ/fcrc_ccle_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
 
+
+
+####################################################
+### Figure 1: circRNA Quantification Comparisons ###
+####################################################
+
+# set palette for plotting
+pal = c("#51C7AD", "#392C57", "#3670A0")
+
+# ========== Unique Transcript Detection: Dataset Comparison per Pipeline ========== #
+
+# create list object of transcripts
+ciri_transcripts <- list(gCSI = ciri_gcsi$sample, CCLE = ciri_ccle$sample, GDSC2 = ciri_gdsc$sample)
+circ_transcripts <- list(gCSI = circ_gcsi$sample, CCLE = circ_ccle$sample, GDSC2 = circ_gdsc$sample)
+cfnd_transcripts <- list(gCSI = cfnd_gcsi$sample, CCLE = cfnd_ccle$sample, GDSC2 = cfnd_gdsc$sample)
+fcrc_transcripts <- list(gCSI = fcrc_gcsi$sample, CCLE = fcrc_ccle$sample, GDSC2 = fcrc_gdsc$sample)
+
+# plot venn diagram
+p1 <- ggvenn(ciri_transcripts, 
+        fill_color = pal, stroke_size = 0.5, set_name_size = 4) + 
+        theme(plot.title = element_text(hjust = 0.5, size = 15)) + labs(title = "CIRI2")
+p2 <- ggvenn(circ_transcripts, 
+        fill_color = pal, stroke_size = 0.5, set_name_size = 4) + 
+        theme(plot.title = element_text(hjust = 0.5, size = 15)) + labs(title = "CIRCexplorer2")
+p3 <- ggvenn(cfnd_transcripts, 
+        fill_color = pal, stroke_size = 0.5, set_name_size = 4) + 
+        theme(plot.title = element_text(hjust = 0.5, size = 15)) + labs(title = "circRNA_finder")
+p4 <- ggvenn(fcrc_transcripts, 
+        fill_color = pal, stroke_size = 0.5, set_name_size = 4) + 
+        theme(plot.title = element_text(hjust = 0.5, size = 15)) + labs(title = "find_circ")
+
+png("../results/figures/A_venndiagram_per_pipeline.png", width=500, height=150, units='mm', res = 600, pointsize=80)
+ggarrange(p1, p2, p3, p4, ncol = 4, nrow = 1, common.legend = FALSE)
+dev.off()
+
+
+# ========== Unique Transcript Detection: Pipeline Comparison ========== #
+
+# create list object of transcripts
+all_comparison <- list(CIRI2 = c(ciri_gcsi$sample, ciri_ccle$sample, ciri_gdsc$sample), 
+                       CIRCexplorer2 = c(circ_gcsi$sample, circ_ccle$sample, circ_gdsc$sample), 
+                       circRNA_finder = c(cfnd_gcsi$sample, cfnd_ccle$sample, cfnd_gdsc$sample),
+                       find_circ = c(fcrc_gcsi$sample, fcrc_ccle$sample, fcrc_gdsc$sample))
+
+# plot venn diagram
+png("../results/figures/A_venndiagram.png", width=200, height=150, units='mm', res = 600, pointsize=80)
+ggvenn(all_comparison, 
+        fill_color = c("#E8F6B1", "#A5DBB7", "#2088BC", "#26479D"),
+        stroke_size = 0.5, set_name_size = 4)
+dev.off()
+
+
+# ========== Transcript Quantification: Dataset Comparison per Pipeline ========== #
+
+# remove sample names column for later quantification
+ciri_gcsi <- ciri_gcsi[,-which(colnames(ciri_gcsi) %in% c("sample"))]
+ciri_ccle <- ciri_ccle[,-which(colnames(ciri_ccle) %in% c("sample"))]
+ciri_gdsc <- ciri_gdsc[,-which(colnames(ciri_gdsc) %in% c("sample"))]
+
+circ_gcsi <- circ_gcsi[,-which(colnames(circ_gcsi) %in% c("sample"))]
+circ_ccle <- circ_ccle[,-which(colnames(circ_ccle) %in% c("sample"))]
+circ_gdsc <- circ_gdsc[,-which(colnames(circ_gdsc) %in% c("sample"))]
+
+cfnd_gcsi <- cfnd_gcsi[,-which(colnames(cfnd_gcsi) %in% c("sample"))]
+cfnd_ccle <- cfnd_ccle[,-which(colnames(cfnd_ccle) %in% c("sample"))]
+cfnd_gdsc <- cfnd_gdsc[,-which(colnames(cfnd_gdsc) %in% c("sample"))]
+
+fcrc_gcsi <- fcrc_gcsi[,-which(colnames(fcrc_gcsi) %in% c("sample"))]
+fcrc_ccle <- fcrc_ccle[,-which(colnames(fcrc_ccle) %in% c("sample"))]
+fcrc_gdsc <- fcrc_gdsc[,-which(colnames(fcrc_gdsc) %in% c("sample"))]
+
+
+# create data frame of counts for plotting
+df <- data.frame(Count = c(sum(ciri_gcsi), sum(ciri_ccle), sum(ciri_gdsc),
+                           sum(circ_gcsi), sum(circ_ccle), sum(circ_gdsc), 
+                           sum(cfnd_gcsi), sum(cfnd_ccle), sum(cfnd_gdsc), 
+                           sum(fcrc_gcsi), sum(fcrc_ccle), sum(fcrc_gdsc)),
+                PSet = c(rep(c("gCSI", "CCLE", "GDSC2"), 4)),
+                Pipeline = c(rep("CIRI2", 3), rep("CIRCexplorer2", 3), rep("circRNA_finder", 3), rep("find_circ", 3)))
+df$Pipeline <- factor(df$Pipeline, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+df$PSet <- factor(df$PSet, levels = c("gCSI", "CCLE", "GDSC2"))
+
+# plot bar plot of counts
+png("../results/figures/A_counts.png", width=200, height=150, units='mm', res = 600, pointsize=80)
+ggplot(df, aes(x = Pipeline, y = Count, fill = PSet)) + geom_bar(stat="identity", position = "dodge", color = "black") +
+  scale_fill_manual(values=pal, limits=c("gCSI", "CCLE", "GDSC2")) + 
+  scale_y_continuous(limits = c(0, 240000), expand=c(0,0))  + theme_classic() + 
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+        legend.key.size = unit(0.4, 'cm'))
+dev.off()
