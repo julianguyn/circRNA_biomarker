@@ -64,7 +64,14 @@ gdsc_mapping <- read.csv("../data/rnaseq_meta/gdsc/samples.csv")
 gdsc$file_name <- gsub("\\..*", "", gdsc$file_name)
 gdsc <- gdsc[gdsc$file_name %in% ciri_gdsc$V1,]
 gdsc$sample_alias <- gdsc_mapping$subject_id[match(gdsc$sample_alias, gdsc_mapping$alias)]
+
+# match gdsc annotations
 gdsc$cellid <- matchToIDTable(ids = gdsc$sample_alias, tbl = cell_all, column = "GDSC_rnaseq.cellid", returnColumn = "unique.cellid")
+gdsc[is.na(gdsc$cellid),]$cellid <- matchToIDTable(ids = gdsc[is.na(gdsc$cellid),]$sample_alias, tbl = cell_all, column = "GDSC1000.cellid", returnColumn = "unique.cellid")
+gdsc[gdsc$sample_alias == "NCI-H820",]$cellid = "NCI-H820"
+gdsc[gdsc$sample_alias == "PC-3-JPC-3",]$cellid = "PC-3 [Human lung carcinoma]"
+gdsc[gdsc$sample_alias == "Geo",]$cellid = "GEO"
+gdsc[gdsc$sample_alias == "NTERA-2cl.D1",]$cellid = "NTERA-2"
 rownames(gdsc) <- gdsc$file_name
 
 # rename rownames of gcsi dataframes
