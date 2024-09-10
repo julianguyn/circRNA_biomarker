@@ -2,7 +2,11 @@
 
 # load libraries
 suppressMessages(library(data.table))
+suppressMessages(library(ggplot2))
+suppressMessages(library(ggpubr))
+suppressMessages(library(ggvenn))
 suppressMessages(library(PharmacoGx))
+
 options(stringsAsFactors = FALSE)
 
 
@@ -286,7 +290,7 @@ p4 <- ggvenn(fcrc_transcripts,
         fill_color = pal, stroke_size = 0.5, set_name_size = 4) + 
         theme(plot.title = element_text(hjust = 0.5, size = 15)) + labs(title = "find_circ")
 
-png("../results/figures/A_venndiagram_per_pipeline.png", width=500, height=150, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure1/venndiagram_per_pipeline.png", width=500, height=150, units='mm', res = 600, pointsize=80)
 ggarrange(p1, p2, p3, p4, ncol = 4, nrow = 1, common.legend = FALSE)
 dev.off()
 
@@ -300,7 +304,7 @@ all_comparison <- list(CIRI2 = c(ciri_gcsi$sample, ciri_ccle$sample, ciri_gdsc$s
                        find_circ = c(fcrc_gcsi$sample, fcrc_ccle$sample, fcrc_gdsc$sample))
 
 # plot venn diagram
-png("../results/figures/A_venndiagram.png", width=200, height=150, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure1/venndiagram.png", width=200, height=150, units='mm', res = 600, pointsize=80)
 ggvenn(all_comparison, 
         fill_color = c("#E8F6B1", "#A5DBB7", "#2088BC", "#26479D"),
         stroke_size = 0.5, set_name_size = 4)
@@ -338,7 +342,7 @@ df$Pipeline <- factor(df$Pipeline, levels = c("CIRI2", "CIRCexplorer2", "circRNA
 df$PSet <- factor(df$PSet, levels = c("gCSI", "CCLE", "GDSC2"))
 
 # plot bar plot of counts
-png("../results/figures/A_counts.png", width=200, height=150, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure1/counts.png", width=200, height=150, units='mm', res = 600, pointsize=80)
 ggplot(df, aes(x = Pipeline, y = Count, fill = PSet)) + geom_bar(stat="identity", position = "dodge", color = "black") +
   scale_fill_manual(values=pal, limits=c("gCSI", "CCLE", "GDSC2")) + 
   scale_y_continuous(limits = c(0, 240000), expand=c(0,0))  + theme_classic() + 
