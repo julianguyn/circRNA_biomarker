@@ -242,6 +242,48 @@ fcrc_ccle_sub <- fcrc_ccle[fcrc_ccle$sample %in% intersected_rnacells,]
 fcrc_gdsc_sub <- fcrc_gdsc[fcrc_gdsc$sample %in% intersected_rnacells,]
 
 
+### TODO: remove
+ciri_gdsc_sub[is.na(ciri_gdsc_sub)] <- 0
+circ_gdsc_sub[is.na(circ_gdsc_sub)] <- 0
+cfnd_gdsc_sub[is.na(cfnd_gdsc_sub)] <- 0
+fcrc_gdsc_sub[is.na(fcrc_gdsc_sub)] <- 0
+
+
+# function to filter transcripts with 0 expression across intersected cell lines
+filter_transcripts <- function(df) {
+
+  # save cell line labels
+  sample <- df$sample
+
+  # remove cell line labels
+  df$sample <- NULL
+
+  # filter transcripts with 0 expression
+  df_sub <- df[,-which(colnames(df) %in% names(which(colSums(df) == 0)))]
+
+  # re-add cell line labels
+  df <- cbind(sample, df_sub)
+
+  return(df)
+}
+
+ciri_gcsi_sub <- filter_transcripts(ciri_gcsi_sub)
+ciri_ccle_sub <- filter_transcripts(ciri_ccle_sub)
+ciri_gdsc_sub <- filter_transcripts(ciri_gdsc_sub)
+
+circ_gcsi_sub <- filter_transcripts(circ_gcsi_sub)
+circ_ccle_sub <- filter_transcripts(circ_ccle_sub)
+circ_gdsc_sub <- filter_transcripts(circ_gdsc_sub)
+
+cfnd_gcsi_sub <- filter_transcripts(cfnd_gcsi_sub)
+cfnd_ccle_sub <- filter_transcripts(cfnd_ccle_sub)
+cfnd_gdsc_sub <- filter_transcripts(cfnd_gdsc_sub)
+
+fcrc_gcsi_sub <- filter_transcripts(fcrc_gcsi_sub)
+fcrc_ccle_sub <- filter_transcripts(fcrc_ccle_sub)
+fcrc_gdsc_sub <- filter_transcripts(fcrc_gdsc_sub)
+
+
 # save dataframes
 write.table(ciri_gcsi_sub, file = "../data/processed_cellline/common_samples/CIRI2/ciri_gcsi_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
 write.table(ciri_gdsc_sub, file = "../data/processed_cellline/common_samples/CIRI2/ciri_gdsc_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
@@ -268,13 +310,30 @@ write.table(fcrc_ccle_sub, file = "../data/processed_cellline/common_samples/fin
 # set palette for plotting
 pal = c("#51C7AD", "#392C57", "#3670A0")
 
+# remove sample names column for downstream analysis
+ciri_gcsi <- ciri_gcsi[,-which(colnames(ciri_gcsi) %in% c("sample"))]
+ciri_ccle <- ciri_ccle[,-which(colnames(ciri_ccle) %in% c("sample"))]
+ciri_gdsc <- ciri_gdsc[,-which(colnames(ciri_gdsc) %in% c("sample"))]
+
+circ_gcsi <- circ_gcsi[,-which(colnames(circ_gcsi) %in% c("sample"))]
+circ_ccle <- circ_ccle[,-which(colnames(circ_ccle) %in% c("sample"))]
+circ_gdsc <- circ_gdsc[,-which(colnames(circ_gdsc) %in% c("sample"))]
+
+cfnd_gcsi <- cfnd_gcsi[,-which(colnames(cfnd_gcsi) %in% c("sample"))]
+cfnd_ccle <- cfnd_ccle[,-which(colnames(cfnd_ccle) %in% c("sample"))]
+cfnd_gdsc <- cfnd_gdsc[,-which(colnames(cfnd_gdsc) %in% c("sample"))]
+
+fcrc_gcsi <- fcrc_gcsi[,-which(colnames(fcrc_gcsi) %in% c("sample"))]
+fcrc_ccle <- fcrc_ccle[,-which(colnames(fcrc_ccle) %in% c("sample"))]
+fcrc_gdsc <- fcrc_gdsc[,-which(colnames(fcrc_gdsc) %in% c("sample"))]
+
 # ========== Unique Transcript Detection: Dataset Comparison per Pipeline ========== #
 
 # create list object of transcripts
-ciri_transcripts <- list(gCSI = ciri_gcsi$sample, CCLE = ciri_ccle$sample, GDSC2 = ciri_gdsc$sample)
-circ_transcripts <- list(gCSI = circ_gcsi$sample, CCLE = circ_ccle$sample, GDSC2 = circ_gdsc$sample)
-cfnd_transcripts <- list(gCSI = cfnd_gcsi$sample, CCLE = cfnd_ccle$sample, GDSC2 = cfnd_gdsc$sample)
-fcrc_transcripts <- list(gCSI = fcrc_gcsi$sample, CCLE = fcrc_ccle$sample, GDSC2 = fcrc_gdsc$sample)
+ciri_transcripts <- list(gCSI = colnames(ciri_gcsi), CCLE = colnames(ciri_ccle), GDSC2 = colnames(ciri_gdsc))
+circ_transcripts <- list(gCSI = colnames(circ_gcsi), CCLE = colnames(circ_ccle), GDSC2 = colnames(circ_gdsc))
+cfnd_transcripts <- list(gCSI = colnames(cfnd_gcsi), CCLE = colnames(cfnd_ccle), GDSC2 = colnames(cfnd_gdsc))
+fcrc_transcripts <- list(gCSI = colnames(fcrc_gcsi), CCLE = colnames(fcrc_ccle), GDSC2 = colnames(fcrc_gdsc))
 
 # plot venn diagram
 p1 <- ggvenn(ciri_transcripts, 
@@ -298,10 +357,10 @@ dev.off()
 # ========== Unique Transcript Detection: Pipeline Comparison ========== #
 
 # create list object of transcripts
-all_comparison <- list(CIRI2 = c(ciri_gcsi$sample, ciri_ccle$sample, ciri_gdsc$sample), 
-                       CIRCexplorer2 = c(circ_gcsi$sample, circ_ccle$sample, circ_gdsc$sample), 
-                       circRNA_finder = c(cfnd_gcsi$sample, cfnd_ccle$sample, cfnd_gdsc$sample),
-                       find_circ = c(fcrc_gcsi$sample, fcrc_ccle$sample, fcrc_gdsc$sample))
+all_comparison <- list(CIRI2 = c(colnames(ciri_gcsi), colnames(ciri_ccle), colnames(ciri_gdsc)), 
+                       CIRCexplorer2 = c(colnames(circ_gcsi), colnames(circ_ccle), colnames(circ_gdsc)), 
+                       circRNA_finder = c(colnames(cfnd_gcsi), colnames(cfnd_ccle), colnames(cfnd_gdsc)),
+                       find_circ = c(colnames(fcrc_gcsi), colnames(fcrc_ccle), colnames(fcrc_gdsc)))
 
 # plot venn diagram
 png("../results/figures/figure1/venndiagram.png", width=200, height=150, units='mm', res = 600, pointsize=80)
@@ -313,23 +372,12 @@ dev.off()
 
 # ========== Transcript Quantification: Dataset Comparison per Pipeline ========== #
 
-# remove sample names column for later quantification
-ciri_gcsi <- ciri_gcsi[,-which(colnames(ciri_gcsi) %in% c("sample"))]
-ciri_ccle <- ciri_ccle[,-which(colnames(ciri_ccle) %in% c("sample"))]
-ciri_gdsc <- ciri_gdsc[,-which(colnames(ciri_gdsc) %in% c("sample"))]
 
-circ_gcsi <- circ_gcsi[,-which(colnames(circ_gcsi) %in% c("sample"))]
-circ_ccle <- circ_ccle[,-which(colnames(circ_ccle) %in% c("sample"))]
-circ_gdsc <- circ_gdsc[,-which(colnames(circ_gdsc) %in% c("sample"))]
-
-cfnd_gcsi <- cfnd_gcsi[,-which(colnames(cfnd_gcsi) %in% c("sample"))]
-cfnd_ccle <- cfnd_ccle[,-which(colnames(cfnd_ccle) %in% c("sample"))]
-cfnd_gdsc <- cfnd_gdsc[,-which(colnames(cfnd_gdsc) %in% c("sample"))]
-
-fcrc_gcsi <- fcrc_gcsi[,-which(colnames(fcrc_gcsi) %in% c("sample"))]
-fcrc_ccle <- fcrc_ccle[,-which(colnames(fcrc_ccle) %in% c("sample"))]
-fcrc_gdsc <- fcrc_gdsc[,-which(colnames(fcrc_gdsc) %in% c("sample"))]
-
+# TODO: remove
+ciri_gdsc[is.na(ciri_gdsc)] <- 0
+circ_gdsc[is.na(circ_gdsc)] <- 0
+cfnd_gdsc[is.na(cfnd_gdsc)] <- 0
+fcrc_gdsc[is.na(fcrc_gdsc)] <- 0
 
 # create data frame of counts for plotting
 df <- data.frame(Count = c(sum(ciri_gcsi), sum(ciri_ccle), sum(ciri_gdsc),
@@ -349,3 +397,6 @@ ggplot(df, aes(x = Pipeline, y = Count, fill = PSet)) + geom_bar(stat="identity"
   theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5),
         legend.key.size = unit(0.4, 'cm'))
 dev.off()
+
+
+##TODO: Add code for lung, isoform, and gene expression processing, normalization
