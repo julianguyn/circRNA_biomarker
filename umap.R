@@ -167,7 +167,7 @@ fcrc_df <- mergePSet(fcrc_gcsi_filtered, fcrc_ccle_filtered, fcrc_gdsc_filtered)
 # save all dataframes
 save(gexpr_df, isoform_df, ciri_df, circ_df, cfnd_df, fcrc_df,
      cell_line_gexpr, cell_line_isoforms, cell_line_ciri, cell_line_circ, cell_line_cfnd, cell_line_fcrc,
-     file="../results/umapdf.RData")
+     file="../results/data/umapdf.RData")
 
 
 
