@@ -1,4 +1,3 @@
-suppressMessages(library(reshape2))
 suppressMessages(library(ggplot2))
 suppressMessages(library(ggpubr))
 suppressMessages(library(ggplotify))
@@ -222,9 +221,40 @@ circ_stability <- rbind(gcsi_ccle_circ, gcsi_gdsc_circ, ccle_gdsc_circ)
 cfnd_stability <- rbind(gcsi_ccle_cfnd, gcsi_gdsc_cfnd, ccle_gdsc_cfnd)
 fcrc_stability <- rbind(gcsi_ccle_fcrc, gcsi_gdsc_fcrc, ccle_gdsc_fcrc)
 
-save(ciri_stability, circ_stability, cfnd_stability, fcrc_stability, file = "../results/data/si_distribution_tissue.RData")
+#save(ciri_stability, circ_stability, cfnd_stability, fcrc_stability, file = "../results/data/si_distribution_tissue.RData")
 
+#######################
+### Plot Stability ####
+#######################
 
+# format dataframe for plotting
+toPlot <- rbind(ciri_stability, circ_stability, cfnd_stability, fcrc_stability)
+toPlot$label <- paste(toPlot$Pipeline, "-", toPlot$PSet_Pair)
+
+for (group in unique(toPlot$label)) {
+
+    # subset dataframe to group
+    subset_df <- toPlot[toPlot$label == group,]
+
+    # get number of transcripts per tissue type to include in plot
+    counts <- as.data.frame(subset_df %>% group_by(Tissue) %>% summarise(Count = n()))
+    subset_df$Count <- counts[match(subset_df$Tissue, counts$Tissue),]$Count
+    subset_df$Tissue <- paste0(subset_df$Tissue, "\n", subset_df$Count)
+
+    # get parameters for plotting
+    filename <- paste0("../results/figures/figure2/tissue/", gsub(" - ", "_", gsub("/", "-", group)), ".png")
+    w <- ifelse(subset_df$PSet_Pair[1] == "gCSI/CCLE", 300, 100)
+
+    png(filename, width=w, height=100, units='mm', res = 600, pointsize=80)
+    print(ggplot(subset_df, aes(x = Tissue, y = Spearman)) + ylim(-1, 1) +
+        geom_violin(alpha = 0.8, fill = "#5B4B49") + geom_boxplot(width=0.1, alpha = 0.3) +
+        theme_classic() + labs(x = "", y = "Stability Index") +
+        theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3),
+            plot.title = element_text(hjust = 0.5)) + ggtitle(subset_df$label[1]) +
+        geom_hline(yintercept = 0, linetype = "dotted"))
+    dev.off()
+
+}
 
 
 
