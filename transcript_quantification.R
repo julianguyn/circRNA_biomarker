@@ -6,6 +6,7 @@ suppressMessages(library(ggplot2))
 suppressMessages(library(ggpubr))
 suppressMessages(library(ggvenn))
 suppressMessages(library(PharmacoGx))
+suppressMessages(library(stringr))
 
 options(stringsAsFactors = FALSE)
 
@@ -30,6 +31,28 @@ suppressWarnings(cfnd_ccle <- fread("../data/raw_cellline/circRNA_finder/cfnd_cc
 suppressWarnings(fcrc_gcsi <- fread("../data/raw_cellline/find_circ/fcrc_gcsi_counts.tsv", data.table = F))
 suppressWarnings(fcrc_gdsc <- fread("../data/raw_cellline/find_circ/fcrc_gdsc_counts.tsv", data.table = F))
 suppressWarnings(fcrc_ccle <- fread("../data/raw_cellline/find_circ/fcrc_ccle_counts.tsv", data.table = F))
+
+
+# load in metadata for tissue-specific analysis
+#gcsi <- readRDS("gCSI.rds") 
+#gcsi <- updateObject(gcsi)
+#gcsi_metadata <- gcsi@molecularProfiles$Kallisto_0.46.1.rnaseq@colData #extract metadata of cell lines
+#write.table(gcsi_metadata, file = "../data/rnaseq_meta/tissue_meta/gcsi_metadata.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+
+#gdsc <- readRDS("GDSC2-8.2.rds")
+#gdsc <- updateObject(gdsc)
+#gdsc_metadata <- gdsc@molecularProfiles$Kallisto_0.46.1.rnaseq@colData
+#write.table(gdsc_metadata, file = "../data/rnaseq_meta/tissue_meta/gdsc_metadata.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+
+#ccle <- readRDS("CCLE.rds")
+#ccle <- updateObject(ccle)
+#ccle_metadata <- ccle@molecularProfiles$Kallisto_0.46.1.rnaseq@colData
+#write.table(ccle_metadata, file = "../data/rnaseq_meta/tissue_meta/ccle_metadata.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+
+# load in tissue metadata
+gcsi_tmeta <- fread("../data/rnaseq_meta/tissue_meta/gcsi_metadata.tsv")
+ccle_tmeta <- fread("../data/rnaseq_meta/tissue_meta/ccle_metadata.tsv")
+gdsc_tmeta <- fread("../data/rnaseq_meta/tissue_meta/gdsc_metadata.tsv")
 
 
 # function to match cell.id to unique.cellid from PharmacoGx
@@ -77,6 +100,18 @@ gdsc[gdsc$sample_alias == "PC-3-JPC-3",]$cellid = "PC-3 [Human lung carcinoma]"
 gdsc[gdsc$sample_alias == "Geo",]$cellid = "GEO"
 gdsc[gdsc$sample_alias == "NTERA-2cl.D1",]$cellid = "NTERA-2"
 rownames(gdsc) <- gdsc$file_name
+
+# match sample to tissue metadata
+gcsi$tissue <- gcsi_tmeta$Tissue_supergroup[match(gcsi$Cell_line, gcsi_tmeta$Cell_line)]
+ccle$tissue <- str_to_title(gsub("_", " ", ccle_tmeta$tissue[match(ccle$Cell_Line, ccle_tmeta$Cell_Line)]))
+gdsc[gdsc$sample_alias == "Geo",]$sample_alias = "GEO"
+gdsc[gdsc$sample_alias == "NB(TU)1-10",]$sample_alias = "NB-TU-1-10"
+gdsc[gdsc$sample_alias == "NTERA-2cl.D1",]$sample_alias = "NTERA-2cl-D1"
+gdsc[gdsc$sample_alias == "UWB1.289",]$sample_alias = "UWB1-289"
+gdsc$tissue <- str_to_title(gdsc_tmeta$Factor.Value.organism.part.[match(gdsc$sample_alias, gdsc_tmeta$Source.Name)])
+
+# save metadata file
+save(gcsi, ccle, gdsc, file = "../results/data/tissue-metadata.RData")
 
 # rename rownames of gcsi dataframes
 ciri_gcsi$V1 <- gcsi$cellid[match(gsub("gcsi", "", ciri_gcsi$V1), rownames(gcsi))]
