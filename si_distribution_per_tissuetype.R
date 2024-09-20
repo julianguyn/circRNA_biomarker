@@ -191,8 +191,10 @@ compute_spearman <- function(df1, df2, pset_label, pipeline_label, meta) {
 
     }
 
-    correlations$PSet_Pair <- pset_label
-    correlations$Pipeline <- pipeline_label
+    if (nrow(correlations) > 0) {
+        correlations$PSet_Pair <- pset_label
+        correlations$Pipeline <- pipeline_label
+    }
 
     return(correlations)
 }
