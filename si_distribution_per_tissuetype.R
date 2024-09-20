@@ -138,7 +138,7 @@ compute_spearman <- function(df1, df2, pset_label, pipeline_label, meta) {
     # loop through each unique tissue
     for (tissue in unique(meta$tissue)) {
 
-        print(paste("----Tissue:", tissue))
+        print(paste("--------Tissue:", tissue))
 
         # initialize vector to store results
         tissue_res <- c()
@@ -157,33 +157,37 @@ compute_spearman <- function(df1, df2, pset_label, pipeline_label, meta) {
         # keep only common circRNA transcripts
         common_transcripts <- intersect(colnames(df1_sub), colnames(df2_sub))
         print(paste("Transcripts:", length(common_transcripts)))
-        df1_sub <- df1_sub[,colnames(df1_sub) %in% common_transcripts]
-        df2_sub <- df2_sub[,colnames(df2_sub) %in% common_transcripts]
 
-        # order dataframe
-        df1_sub <- df1_sub[order(df1_sub$sample),order(colnames(df1_sub))]
-        df2_sub <- df2_sub[order(df2_sub$sample),order(colnames(df2_sub))]
+        # only compute spearman if there is at least 3 transcripts
+        if (length(common_transcripts) > 2) {
 
-        # remove sample names
-        rownames(df1_sub) <- df1_sub$sample
-        rownames(df2_sub) <- df2_sub$sample
-        df1_sub$sample <- NULL
-        df2_sub$sample <- NULL
+            df1_sub <- df1_sub[,colnames(df1_sub) %in% common_transcripts]
+            df2_sub <- df2_sub[,colnames(df2_sub) %in% common_transcripts]
 
+            # order dataframe
+            df1_sub <- df1_sub[order(df1_sub$sample),order(colnames(df1_sub))]
+            df2_sub <- df2_sub[order(df2_sub$sample),order(colnames(df2_sub))]
 
-        print("Starting spearman")
-        # loop through each common transcript
-        for (i in 1:ncol(df1_sub)) {
+            # remove sample names
+            rownames(df1_sub) <- df1_sub$sample
+            rownames(df2_sub) <- df2_sub$sample
+            df1_sub$sample <- NULL
+            df2_sub$sample <- NULL
 
-            # compute correlations of transcript expression for pairs of psets
-            spearman_results <- suppressWarnings(cor(x = as.numeric(df1_sub[, i]), y = as.numeric(df2_sub[, i]), method = "spearman"))
+            # loop through each common transcript
+            for (i in 1:ncol(df1_sub)) {
+
+                # compute correlations of transcript expression for pairs of psets
+                spearman_results <- suppressWarnings(cor(x = as.numeric(df1_sub[, i]), y = as.numeric(df2_sub[, i]), method = "spearman"))
+                
+                # combine results
+                tissue_res <- c(tissue_res, spearman_results)
+            }
             
-            # combine results
-            tissue_res <- c(tissue_res, spearman_results)
-        }
-        
-        tissue_res <- data.frame(Spearman = tissue_res, Tissue = tissue)
-        correlations <- rbind(correlations, tissue_res)
+            tissue_res <- data.frame(Spearman = tissue_res, Tissue = tissue)
+            correlations <- rbind(correlations, tissue_res)
+
+        } else { print(paste("-- SKIPPING", tissue))}
 
     }
 
