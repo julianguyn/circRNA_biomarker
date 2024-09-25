@@ -4,6 +4,7 @@ suppressMessages(library(ggplotify))
 suppressMessages(library(matrixStats))
 suppressMessages(library(data.table))
 suppressMessages(library(dplyr))
+suppressMessages(library(tidyverse))
 suppressMessages(library(RColorBrewer))
 
 
