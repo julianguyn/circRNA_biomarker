@@ -110,21 +110,45 @@ fcrc_gdsc <- subset_df(fcrc_gdsc, fcrc_common)
 # ========== Compute pairwise spearman correlations from circRNA datasets ========== #
 
 # function to compute pairwise spearman correlations
-compute_spearman <- function(gcsi_df, ccle_df, gdsc_df) {
+compute_spearman <- function(gcsi_df, ccle_df, gdsc_df, random = FALSE, iter = 1) {
+
+    # INPUTS:
+    #   gcsi_df, ccle_df, gdsc_df: PSet-specific dataframes from the subset_df() function
+    #   random: TRUE for random sampling of sample names, FALSE otherwise
+    #   iter: number of iterations to be performed (for random sampling and SI computation)
 
     # initialize dataframe to store results
     correlations <- data.frame(matrix(nrow=0, ncol=3))
-    
-    # loop through each common transcript
-    for (i in 1:ncol(gcsi_df)) {
 
-        # compute correlations of transcript expression for pairs of psets
-        gcsi_ccle_spearman <- suppressWarnings(cor(x = as.numeric(gcsi_df[, i]), y = as.numeric(ccle_df[, i]), method = "spearman")) #gCSI vs CCLE
-        gcsi_gdsc_spearman <- suppressWarnings(cor(x = as.numeric(gcsi_df[, i]), y = as.numeric(gdsc_df[, i]), method = "spearman")) #gCSI vs GDSC
-        gdsc_ccle_spearman <- suppressWarnings(cor(x = as.numeric(gdsc_df[, i]), y = as.numeric(ccle_df[, i]), method = "spearman")) #GDSC vs CCLE
-    
-        # combine results
-        correlations <- rbind(correlations, c(gcsi_ccle_spearman, gcsi_gdsc_spearman, gdsc_ccle_spearman))
+    # loop through for number of iterations
+    for (i in 1:iter) {
+
+        # if random == TRUE
+        if (random == TRUE) {
+
+            # randomly shuffle cell line names
+            rownames(gcsi_df) <- sample(rownames(gcsi_df))
+            rownames(ccle_df) <- sample(rownames(ccle_df))
+            rownames(gdsc_df) <- sample(rownames(gdsc_df))
+
+            # order dataframe
+            gcsi_df <- gcsi_df[order(rownames(gcsi_df)),]
+            ccle_df <- ccle_df[order(rownames(ccle_df)),]
+            gdsc_df <- gdsc_df[order(rownames(gdsc_df)),]
+        }
+        
+        # loop through each common transcript
+        for (i in 1:ncol(gcsi_df)) {
+
+            # compute correlations of transcript expression for pairs of psets
+            gcsi_ccle_spearman <- suppressWarnings(cor(x = as.numeric(gcsi_df[, i]), y = as.numeric(ccle_df[, i]), method = "spearman")) #gCSI vs CCLE
+            gcsi_gdsc_spearman <- suppressWarnings(cor(x = as.numeric(gcsi_df[, i]), y = as.numeric(gdsc_df[, i]), method = "spearman")) #gCSI vs GDSC
+            gdsc_ccle_spearman <- suppressWarnings(cor(x = as.numeric(gdsc_df[, i]), y = as.numeric(ccle_df[, i]), method = "spearman")) #GDSC vs CCLE
+        
+            # combine results
+            correlations <- rbind(correlations, c(gcsi_ccle_spearman, gcsi_gdsc_spearman, gdsc_ccle_spearman))
+        }
+
     }
     
     colnames(correlations) <- c("gCSI/CCLE", "gCSI/GDSC2", "GDSC2/CCLE")
@@ -137,9 +161,18 @@ circ_stability <- compute_spearman(circ_gcsi, circ_ccle, circ_gdsc)
 cfnd_stability <- compute_spearman(cfnd_gcsi, cfnd_ccle, cfnd_gdsc)
 fcrc_stability <- compute_spearman(fcrc_gcsi, fcrc_ccle, fcrc_gdsc)
 
+# compute spearman correlations after random shuffling
+ciri_stability_random <- compute_spearman(ciri_gcsi, ciri_ccle, ciri_gdsc, random = TRUE, iter = 100)
+circ_stability_random <- compute_spearman(circ_gcsi, circ_ccle, circ_gdsc, random = TRUE, iter = 100)
+cfnd_stability_random <- compute_spearman(cfnd_gcsi, cfnd_ccle, cfnd_gdsc, random = TRUE, iter = 100)
+fcrc_stability_random <- compute_spearman(fcrc_gcsi, fcrc_ccle, fcrc_gdsc, random = TRUE, iter = 100)
+
 
 save(ciri_stability, circ_stability, cfnd_stability, fcrc_stability, 
      file = "../results/data/temp/circ_stability.RData")
+
+save(ciri_stability_random, circ_stability_random, cfnd_stability_random, fcrc_stability_random, 
+     file = "../results/data/temp/circ_stability_random.RData")
 
 
 ###########################
@@ -236,7 +269,7 @@ gene_stability$gdsc_median <- gdsc_median
 ### Plot Stability ####
 #######################
 
-# ========== Format dataframes for plotting ========== #
+# ========== Compare stability indices of molecular features ========== #
 
 # function to format stability dataframes
 format_df <- function(df, label) {
@@ -265,7 +298,7 @@ toPlot <- rbind(gene_stability, transcript_stability,
 toPlot$label <- factor(toPlot$label, levels = c("Gene Expression", "Isoforms", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 
 
-png("../results/figures/figure1/stability.png", width=300, height=150, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure2/stability.png", width=300, height=150, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = label, y = Stability)) + 
     geom_violin(aes(fill = label), alpha = 0.8) + geom_boxplot(width=0.1, alpha = 0.3) +
     facet_grid(factor(PSet)~.) +
@@ -274,3 +307,39 @@ ggplot(toPlot, aes(x = label, y = Stability)) +
     theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.7, 'cm')) +
     geom_hline(yintercept = 0, linetype = "dotted")
 dev.off()
+
+
+# ========== Compare circRNA stability withh random ========== #
+
+library(reshape2)
+
+# label dataframes
+ciri_stability$label <- "CIRI2-NonRandom"
+circ_stability$label <- "CIRCexplorer2-NonRandom"
+cfnd_stability$label <- "circRNA_finder-NonRandom"
+fcrc_stability$label <- "find_circ-NonRandom"
+
+ciri_stability_random$label <- "CIRI2-Random"
+circ_stability_random$label <- "CIRCexplorer2-Random"
+cfnd_stability_random$label <- "circRNA_finder-Random"
+fcrc_stability_random$label <- "find_circ-Random"
+
+# format dataframe for plotting
+toPlot <- rbind(ciri_stability, circ_stability, cfnd_stability, fcrc_stability,
+                ciri_stability_random, circ_stability_random, cfnd_stability_random, fcrc_stability_random)
+toPlot <- melt(toPlot)
+toPlot$Label <- gsub(".*-", "", toPlot$label)
+toPlot$PSet <- gsub("-.*", "", toPlot$label)
+toPlot$PSet <- factor(toPlot$PSet, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+
+# plot
+png("../results/figures/figure2/stability_randomized.png", width=300, height=150, units='mm', res = 600, pointsize=80)
+png("stability_randomized.png", width=150, height=150, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = variable, y = value, fill = Label)) + 
+    #geom_violin(aes(fill = Label), alpha = 0.8) + 
+    geom_boxplot() + facet_grid(PSet~.) + theme_classic() + 
+    labs(x = "", fill = "", y = "Stability Index") + scale_fill_manual(values = c("#839788", "gray")) +
+    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.7, 'cm')) +
+    geom_hline(yintercept = 0, linetype = "dotted")
+dev.off()
+
