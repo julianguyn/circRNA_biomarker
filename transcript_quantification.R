@@ -7,6 +7,7 @@ suppressMessages(library(ggpubr))
 suppressMessages(library(ggvenn))
 suppressMessages(library(PharmacoGx))
 suppressMessages(library(stringr))
+suppressMessages(library(ComplexHeatmap))
 
 options(stringsAsFactors = FALSE)
 
@@ -391,7 +392,7 @@ dev.off()
 
 # ========== Unique Transcript Detection: Pipeline Comparison ========== #
 
-# create list object of transcripts
+# create list object of transcripts for venn diagram
 all_comparison <- list(CIRI2 = c(colnames(ciri_gcsi), colnames(ciri_ccle), colnames(ciri_gdsc)), 
                        CIRCexplorer2 = c(colnames(circ_gcsi), colnames(circ_ccle), colnames(circ_gdsc)), 
                        circRNA_finder = c(colnames(cfnd_gcsi), colnames(cfnd_ccle), colnames(cfnd_gdsc)),
@@ -403,6 +404,35 @@ ggvenn(all_comparison,
         fill_color = c("#E8F6B1", "#A5DBB7", "#2088BC", "#26479D"),
         stroke_size = 0.5, set_name_size = 4)
 dev.off()
+
+
+# create list object of transcripts for upset plot
+set.seed(123)
+all_comparison <- make_comb_mat(list(
+            gCSI_CIRI2 = colnames(ciri_gcsi), CCLE_CIRI2 = colnames(ciri_ccle), GDSC_CIRI2 = colnames(ciri_gdsc),
+            gCSI_CIRCexplorer2 = colnames(circ_gcsi), CCLE_CIRCexplorer2 = colnames(circ_ccle), GDSC_CIRCexplorer2 = colnames(circ_gdsc),
+            gCSI_circRNA_finder = colnames(cfnd_gcsi), CCLE_circRNA_finder = colnames(cfnd_ccle), GDSC_circRNA_finder = colnames(cfnd_gdsc),
+            gCSI_find_circ = colnames(fcrc_gcsi), CCLE_find_circ = colnames(fcrc_ccle), GDSC_find_circ = colnames(fcrc_gdsc)))
+
+# remove combinations of less than 2 pairs
+toPlot <- toPlot[comb_size(toPlot) >= 2]
+
+# upset plot
+pdf("../results/figures/figure1/upset_by_pipeline.pdf", width=10, height=5)
+UpSet(toPlot, set_order = c("gCSI_CIRI2", "CCLE_CIRI2", "GDSC_CIRI2", "gCSI_CIRCexplorer2", "CCLE_CIRCexplorer2", "GDSC_CIRCexplorer2",
+                            "gCSI_circRNA_finder", "CCLE_circRNA_finder", "GDSC_circRNA_finder", "gCSI_find_circ", "CCLE_find_circ", "GDSC_find_circ"),
+        top_annotation = upset_top_annotation(toPlot, add_numbers = TRUE),
+        comb_order = order(comb_size(toPlot)))
+dev.off()
+
+pdf("../results/figures/figure1/upset_by_pset.pdf", width=10, height=5)
+UpSet(toPlot, set_order = c("gCSI_CIRI2", "gCSI_CIRCexplorer2", "gCSI_circRNA_finder", "gCSI_find_circ",
+                            "CCLE_CIRCexplorer2", "CCLE_CIRI2", "CCLE_circRNA_finder", "CCLE_find_circ",
+                            "GDSC_CIRI2", "GDSC_CIRCexplorer2", "GDSC_circRNA_finder", "GDSC_find_circ"),
+        top_annotation = upset_top_annotation(toPlot, add_numbers = TRUE),
+        comb_order = order(comb_size(toPlot)))
+dev.off()
+
 
 
 # ========== Transcript Quantification: Dataset Comparison per Pipeline ========== #
