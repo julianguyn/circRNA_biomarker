@@ -5,6 +5,7 @@ suppressMessages(library(umap))
 suppressMessages(library(ggplot2))
 suppressMessages(library(ggpubr))
 suppressMessages(library(viridis))
+suppressMessages(library(dplyr))
 set.seed(101)
 
 
@@ -238,13 +239,57 @@ p5 <- plot_umap(cfnd_umap, "circRNA_finder circRNA Expression")
 p6 <- plot_umap(fcrc_umap, "find_circ circRNA Expression")
 
 
-png("../results/figures/A_umaps.png", width=400, height=225, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure2/umaps.png", width=400, height=225, units='mm', res = 600, pointsize=80)
 ggarrange(p1, p3, p5, p2, p4, p6,
           ncol = 3, nrow = 2,
           common.legend = TRUE,
           legend = "right")
 dev.off()
 
+
+# ========== Plot distances between replicates on UMAP projection ========== #
+
+# function to compute euclidean distances
+compute_dist <- function(umap_df, label) {
+
+    # compute euclidean distance across replicates
+    distances <- umap_df %>%
+      group_by(cell_line) %>%
+      summarize(euclidean_dist = dist(cbind(UMAP1, UMAP2)))
+
+    distances$label <- label
+    return(distances)
+}
+
+suppressWarnings(gexpr_dist <- compute_dist(gexpr_umap, "Gene Expression"))
+suppressWarnings(isoform_dist <- compute_dist(isoform_umap, "Isoforms"))
+suppressWarnings(ciri_dist <- compute_dist(ciri_umap, "CIRI2"))
+suppressWarnings(circ_dist <- compute_dist(circ_umap, "CIRCexplorer2"))
+suppressWarnings(cfnd_dist <- compute_dist(cfnd_umap, "circRNA_finder"))
+suppressWarnings(fcrc_dist <- compute_dist(fcrc_umap, "find_circ"))
+
+# format dataframe for plotting
+toPlot <- rbind(gexpr_dist, isoform_dist, ciri_dist, circ_dist, cfnd_dist, fcrc_dist)
+toPlot$label <- factor(toPlot$label, levels = c("Gene Expression", "Isoforms", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+
+# plot density plot
+png("../results/figures/figure2/umap_dist_density.png", width=150, height=100, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = euclidean_dist)) + geom_density(aes(fill = label), alpha = 0.4, size = 0.5) + 
+        theme_classic() +  
+        scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
+        labs(x = "Euclidean Distance of UMAP Points", y = "Density") +
+        theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3),
+            legend.key.size = unit(0.4, 'cm'))
+dev.off()
+
+# plot violin plots
+png("../results/figures/figure2/umap_dist_boxplot.png", width=150, height=100, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = label, y = euclidean_dist)) + 
+    geom_violin(aes(fill = label), alpha = 0.8) + geom_boxplot(width=0.1, alpha = 0.4) +
+    theme_classic() + labs(x = "", fill = "", y = "Euclidean Distance of UMAP Points") +
+    scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
+    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.position = "none") 
+dev.off()
 
 
 ############################################################################################################
