@@ -28,21 +28,21 @@ corr_reps <- function(df, cell_line_labels) {
 
     # initiate dataframe for storing results
     correlations <- data.frame(matrix(nrow=0, ncol=4))
-    colnames(correlations) <- c("circRNA", "Corr1", "Corr2", "Corr3")
+    colnames(correlations) <- c("Cells", "gCSI_CCLE", "gCSI_GDSC", "GDSC_CCLE")
 
     # loop through each common transcript
-    for (i in 1:ncol(p1)) {
+    for (i in 1:nrow(p1)) {
 
-        circ <- colnames(p1)[i]
+        cell <- rownames(p1)[i]
 
         # compute correlations of transcript expression for pairs of psets
-        p1_p2 <- suppressWarnings(cor(x = as.numeric(p1[,i]), y = as.numeric(p2[,i]), method = "spearman")) #gCSI vs CCLE
-        p1_p3 <- suppressWarnings(cor(x = as.numeric(p1[,i]), y = as.numeric(p3[,i]), method = "spearman")) #gCSI vs GDSC
-        p2_p3 <- suppressWarnings(cor(x = as.numeric(p2[,i]), y = as.numeric(p3[,i]), method = "spearman")) #GDSC vs CCLE
+        p1_p2 <- suppressWarnings(cor(x = as.numeric(p1[i,]), y = as.numeric(p2[i,]), method = "spearman")) #gCSI vs CCLE
+        p1_p3 <- suppressWarnings(cor(x = as.numeric(p1[i,]), y = as.numeric(p3[i,]), method = "spearman")) #gCSI vs GDSC
+        p2_p3 <- suppressWarnings(cor(x = as.numeric(p2[i,]), y = as.numeric(p3[i,]), method = "spearman")) #GDSC vs CCLE
     
         # combine results
         correlations <- rbind(correlations, 
-                            data.frame(circRNA = circ, Corr1 = p1_p2, Corr2 = p1_p3, Corr3 = p2_p3))
+                            data.frame(Cells = cell, gCSI_CCLE = p1_p2, gCSI_GDSC = p1_p3, GDSC_CCLE = p2_p3))
     }
 
     return(correlations)
@@ -56,4 +56,4 @@ circ_corr <- corr_reps(circ_df, cell_line_circ)
 cfnd_corr <- corr_reps(cfnd_df, cell_line_cfnd)
 fcrc_corr <- corr_reps(fcrc_df, cell_line_fcrc)
 
-save(ciri_corr, circ_corr, cfnd_corr, fcrc_corr, file = "results/data/corr_expr.RData")
+save(ciri_corr, circ_corr, cfnd_corr, fcrc_corr, gexpr_corr, isoform_corr, file = "../results/data/corr_expr.RData")
