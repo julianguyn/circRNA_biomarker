@@ -2,6 +2,8 @@
 
 # load libraries
 suppressMessages(library(data.table))
+library(reshape2)
+library(ggplot2)
 
 # load processed expression data
 load("../results/data/umapdf.RData")
@@ -57,3 +59,55 @@ cfnd_corr <- corr_reps(cfnd_df, cell_line_cfnd)
 fcrc_corr <- corr_reps(fcrc_df, cell_line_fcrc)
 
 save(ciri_corr, circ_corr, cfnd_corr, fcrc_corr, gexpr_corr, isoform_corr, file = "../results/data/corr_expr.RData")
+
+
+#######################
+### Plot Stability ####
+#######################
+
+# ========== Compare correlation of biological replicates ========== #
+
+# function to format correlation dataframes
+format_df <- function(df, label) {
+  colnames(df) <- c("Cells", "gCSI/CCLE", "gCSI/GDSC2", "GDSC2/CCLE")
+  toPlot <- melt(df)
+  colnames(toPlot) <- c("Cells", "PSet", "Correlation")
+  toPlot$label <- label
+  return(toPlot)
+}
+
+gexpr_corr <- format_df(gexpr_corr, "Gene Expression")
+isoform_corr <- format_df(isoform_corr, "Isoforms")
+ciri_corr <- format_df(ciri_corr, "CIRI2")
+circ_corr <- format_df(circ_corr, "CIRCexplorer2")
+cfnd_corr <- format_df(cfnd_corr, "circRNA_finder")
+fcrc_corr <- format_df(fcrc_corr, "find_circ")
+
+# merge results for plotting
+toPlot <- rbind(gexpr_corr, isoform_corr, 
+                ciri_corr, circ_corr, 
+                cfnd_corr, fcrc_corr)
+toPlot[is.na(toPlot)] <- 0
+toPlot$label <- factor(toPlot$label, levels = c("Gene Expression", "Isoforms", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+
+
+png("../results/figures/figure2/correlate_reps.png", width=200, height=75, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = Correlation, y = label)) + 
+    geom_violin(aes(fill = label, alpha = PSet), scale = "width", width = 1.1, position = position_dodge(width = 0.8)) + 
+    theme_classic() + labs(x = "Spearman Correlation", fill = "", alpha = "", y = "") +
+    scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
+    scale_alpha_manual(values = c(0.2, 0.5, 0.9)) +
+    scale_y_discrete(limits = c("find_circ", "circRNA_finder", "CIRCexplorer2", "CIRI2", "Isoforms", "Gene Expression")) + 
+    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), 
+          legend.key.size = unit(0.5, 'cm')) 
+dev.off()
+
+# plot density plot
+png("../results/figures/figure2/corr_dist_density.png", width=150, height=50, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = Correlation)) + geom_density(aes(fill = label), alpha = 0.4, size = 0.5) + 
+        theme_classic() +  
+        scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
+        labs(x = "Spearman Correlation", y = "Density", fill = "") +
+        theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3),
+            legend.key.size = unit(0.4, 'cm'))
+dev.off()
