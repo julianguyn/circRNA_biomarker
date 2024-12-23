@@ -156,35 +156,47 @@ circExpToGene <- function(circ_map, circ_exp) {
         inner_join(circ_map, by = "old_name", relationship = "many-to-many") %>%
         group_by(sample, gene) %>%
         summarize(expression = mean(expression), .groups = "drop") %>%
-        pivot_wider(names_from = gene, values_from = expression)
+        pivot_wider(names_from = gene, values_from = expression) %>% 
+        as.data.frame()
 
     return(gene_exp)
 
 }
 
-ciri_gcsi_ge <- circToGene(ciri_gcsi_map, ciri_gcsi_sub)
-ciri_gdsc_ge <- circToGene(ciri_gdsc_map, ciri_gdsc_sub)
-ciri_ccle_ge <- circToGene(ciri_ccle_map, ciri_ccle_sub)
+ciri_gcsi_ge <- circExpToGene(ciri_gcsi_map, ciri_gcsi_sub)
+ciri_gdsc_ge <- circExpToGene(ciri_gdsc_map, ciri_gdsc_sub)
+ciri_ccle_ge <- circExpToGene(ciri_ccle_map, ciri_ccle_sub)
 
-circ_gcsi_ge <- circToGene(circ_gcsi_map, circ_gcsi_sub)
-circ_gdsc_ge <- circToGene(circ_gdsc_map, circ_gdsc_sub)
-circ_ccle_ge <- circToGene(circ_ccle_map, circ_ccle_sub)
+circ_gcsi_ge <- circExpToGene(circ_gcsi_map, circ_gcsi_sub)
+circ_gdsc_ge <- circExpToGene(circ_gdsc_map, circ_gdsc_sub)
+circ_ccle_ge <- circExpToGene(circ_ccle_map, circ_ccle_sub)
 
-cfnd_gcsi_ge <- circToGene(cfnd_gcsi_map, cfnd_gcsi_sub)
-cfnd_gdsc_ge <- circToGene(cfnd_gdsc_map, cfnd_gdsc_sub)
-cfnd_ccle_ge <- circToGene(cfnd_ccle_map, cfnd_ccle_sub)
+cfnd_gcsi_ge <- circExpToGene(cfnd_gcsi_map, cfnd_gcsi_sub)
+cfnd_gdsc_ge <- circExpToGene(cfnd_gdsc_map, cfnd_gdsc_sub)
+cfnd_ccle_ge <- circExpToGene(cfnd_ccle_map, cfnd_ccle_sub)
 
-fcrc_gcsi_ge <- circToGene(fcrc_gcsi_map, fcrc_gcsi_sub)
-fcrc_gdsc_ge <- circToGene(fcrc_gdsc_map, fcrc_gdsc_sub)
-fcrc_ccle_ge <- circToGene(fcrc_ccle_map, fcrc_ccle_sub)
+fcrc_gcsi_ge <- circExpToGene(fcrc_gcsi_map, fcrc_gcsi_sub)
+fcrc_gdsc_ge <- circExpToGene(fcrc_gdsc_map, fcrc_gdsc_sub)
+fcrc_ccle_ge <- circExpToGene(fcrc_ccle_map, fcrc_ccle_sub)
 
 
-save(ciri_gcsi_ge, ciri_gdsc_ge, ciri_ccle_ge, 
-     circ_gcsi_ge, circ_gdsc_ge, circ_ccle_ge,
-     cfnd_gcsi_ge, cfnd_gdsc_ge, cfnd_ccle_ge,
-     fcrc_gcsi_ge, fcrc_gdsc_ge, fcrc_ccle_ge, 
-     file = "../results/data/temp/circ_to_gene.RData")
-     
+# save dataframes
+write.table(ciri_gcsi_ge, file = "../data/processed_cellline/GE_common_samples/CIRI2/ciri_gcsi_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+write.table(ciri_gdsc_ge, file = "../data/processed_cellline/GE_common_samples/CIRI2/ciri_gdsc_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+write.table(ciri_ccle_ge, file = "../data/processed_cellline/GE_common_samples/CIRI2/ciri_ccle_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+
+write.table(circ_gcsi_ge, file = "../data/processed_cellline/GE_common_samples/CIRCexplorer2/circ_gcsi_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+write.table(circ_gdsc_ge, file = "../data/processed_cellline/GE_common_samples/CIRCexplorer2/circ_gdsc_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+write.table(circ_ccle_ge, file = "../data/processed_cellline/GE_common_samples/CIRCexplorer2/circ_ccle_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+
+write.table(cfnd_gcsi_ge, file = "../data/processed_cellline/GE_common_samples/circRNA_finder/cfnd_gcsi_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+write.table(cfnd_gdsc_ge, file = "../data/processed_cellline/GE_common_samples/circRNA_finder/cfnd_gdsc_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+write.table(cfnd_ccle_ge, file = "../data/processed_cellline/GE_common_samples/circRNA_finder/cfnd_ccle_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+
+write.table(fcrc_gcsi_ge, file = "../data/processed_cellline/GE_common_samples/find_circ/fcrc_gcsi_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+write.table(fcrc_gdsc_ge, file = "../data/processed_cellline/GE_common_samples/find_circ/fcrc_gdsc_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+write.table(fcrc_ccle_ge, file = "../data/processed_cellline/GE_common_samples/find_circ/fcrc_ccle_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+
 
 ## OLD CODE
 # ========== Map circRNAs to genes ========== #
