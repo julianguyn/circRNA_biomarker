@@ -7,6 +7,8 @@ suppressPackageStartupMessages({
     library(stringr)
     library(TxDb.Hsapiens.UCSC.hg38.knownGene)
     library(org.Hs.eg.db)
+    library(dplyr)
+    library(tidyr)
 })
 
 
@@ -102,7 +104,17 @@ circToGene <- function(gr) {
         }
         circ_genes[[circRNA$circID]] <- unname(mcols(exons[genes])$gene_name)
     }
-    return(circ_genes)
+
+    # creating mapping df of circ to gene from circ_genes list
+    mapping <- do.call(rbind, lapply(names(circ_genes), function(col) {
+        if (length(circ_genes[[col]]) > 0) {
+            data.frame(old_name = col, gene = circ_genes[[col]])
+        } else {
+            NULL
+        }
+    })) |> as.data.frame(stringsAsFactors = FALSE)
+
+    return(mapping)
 }
 
 
@@ -132,6 +144,47 @@ save(ciri_gcsi_map, ciri_gdsc_map, ciri_ccle_map,
 
 
 
+############################################################
+# Convert circRNA expression matrix labels to genes
+############################################################
+
+# function to map circRNA expression matrices to gene-level annotations
+circExpToGene <- function(circ_map, circ_exp) {
+
+    gene_exp <- circ_exp %>%
+        pivot_longer(cols = -sample, names_to = "old_name", values_to = "expression") %>%
+        inner_join(circ_map, by = "old_name", relationship = "many-to-many") %>%
+        group_by(sample, gene) %>%
+        summarize(expression = mean(expression), .groups = "drop") %>%
+        pivot_wider(names_from = gene, values_from = expression)
+
+    return(gene_exp)
+
+}
+
+ciri_gcsi_ge <- circToGene(ciri_gcsi_map, ciri_gcsi_sub)
+ciri_gdsc_ge <- circToGene(ciri_gdsc_map, ciri_gdsc_sub)
+ciri_ccle_ge <- circToGene(ciri_ccle_map, ciri_ccle_sub)
+
+circ_gcsi_ge <- circToGene(circ_gcsi_map, circ_gcsi_sub)
+circ_gdsc_ge <- circToGene(circ_gdsc_map, circ_gdsc_sub)
+circ_ccle_ge <- circToGene(circ_ccle_map, circ_ccle_sub)
+
+cfnd_gcsi_ge <- circToGene(cfnd_gcsi_map, cfnd_gcsi_sub)
+cfnd_gdsc_ge <- circToGene(cfnd_gdsc_map, cfnd_gdsc_sub)
+cfnd_ccle_ge <- circToGene(cfnd_ccle_map, cfnd_ccle_sub)
+
+fcrc_gcsi_ge <- circToGene(fcrc_gcsi_map, fcrc_gcsi_sub)
+fcrc_gdsc_ge <- circToGene(fcrc_gdsc_map, fcrc_gdsc_sub)
+fcrc_ccle_ge <- circToGene(fcrc_ccle_map, fcrc_ccle_sub)
+
+
+save(ciri_gcsi_ge, ciri_gdsc_ge, ciri_ccle_ge, 
+     circ_gcsi_ge, circ_gdsc_ge, circ_ccle_ge,
+     cfnd_gcsi_ge, cfnd_gdsc_ge, cfnd_ccle_ge,
+     fcrc_gcsi_ge, fcrc_gdsc_ge, fcrc_ccle_ge, 
+     file = "../results/data/temp/circ_to_gene.RData")
+     
 
 ## OLD CODE
 # ========== Map circRNAs to genes ========== #
