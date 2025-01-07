@@ -223,8 +223,8 @@ umap_fn <- function(expr_df, cell_line) {
     umap_df <- umap(expr_df)
     umap_df <- as.data.frame(umap_df$layout)
     colnames(umap_df) <- c("UMAP1", "UMAP2")
-    umap_df$cell_line <- cell_line
-    umap_df$dataset <- c(rep("gCSI", 48), rep("CCLE", 48), rep("GDSC", 48))
+    umap_df$cell_line <- cell_line$Sample
+    umap_df$dataset <- cell_line$PSet
     return(umap_df)
 }
 
@@ -266,7 +266,7 @@ p4 <- plot_umap(fcrc_umap, "find_circ circRNA Expression")
 
 
 png("../results/figures/figure5/umaps_ge.png", width=275, height=225, units='mm', res = 600, pointsize=80)
-ggarrange(p1, p3, p2, p6, ncol = 2, nrow = 2,
+ggarrange(p1, p3, p2, p4, ncol = 2, nrow = 2,
           common.legend = TRUE, legend = "right")
 dev.off()
 
@@ -294,3 +294,22 @@ fcrc_dist <- compute_dist(fcrc_umap, "find_circ") |> suppressWarnings()
 # format dataframe for plotting
 toPlot <- rbind(ciri_dist, circ_dist, cfnd_dist, fcrc_dist)
 toPlot$label <- factor(toPlot$label, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+
+# plot density plot
+png("../results/figures/figure5/umap_dist_density.png", width=150, height=100, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = euclidean_dist)) + geom_density(aes(fill = label), alpha = 0.4, size = 0.5) + 
+        theme_classic() +  
+        scale_fill_manual(values = c("#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
+        labs(x = "Euclidean Distance of UMAP Points", y = "Density") +
+        theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3),
+            legend.key.size = unit(0.4, 'cm'))
+dev.off()
+
+# plot violin plots
+png("../results/figures/figure5/umap_dist_boxplot.png", width=150, height=100, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = label, y = euclidean_dist)) + 
+    geom_violin(aes(fill = label), alpha = 0.8) + geom_boxplot(width=0.1, alpha = 0.4) +
+    theme_classic() + labs(x = "", fill = "", y = "Euclidean Distance of UMAP Points") +
+    scale_fill_manual(values = c("#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
+    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.position = "none") 
+dev.off()
