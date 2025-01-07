@@ -161,11 +161,11 @@ df$PSet <- factor(df$PSet, levels = c("gCSI", "CCLE", "GDSC2"))
 
 # plot bar plot of counts
 png("../results/figures/figure4/counts_ge.png", width=200, height=150, units='mm', res = 600, pointsize=80)
-ggplot(df, aes(x = Pipeline, y = Count, fill = PSet)) + geom_bar(stat="identity", position = "dodge", color = "black") +
+ggplot(df, aes(x = Pipeline, y = log2(Count), fill = PSet)) + geom_bar(stat="identity", position = "dodge", color = "black") +
   scale_fill_manual(values=pal1, limits=c("gCSI", "CCLE", "GDSC2")) + 
-  scale_y_continuous(limits = c(0, 75000), expand=c(0,0))  + theme_classic() + 
+  scale_y_continuous(limits = c(0, 18), expand=c(0,0))  + theme_classic() + 
   theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5),
-        legend.key.size = unit(0.4, 'cm'))
+        legend.key.size = unit(0.4, 'cm')) + labs(y = "Log2 Normalized Counts")
 dev.off()
 
 
