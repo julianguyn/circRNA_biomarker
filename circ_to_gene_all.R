@@ -52,6 +52,7 @@ IDstoBED <- function(df) {
     circIDs <- colnames(df[,-c(1)])
     coords <- str_split(circIDs, "\\.", simplify = T) |> as.data.frame() 
     colnames(coords) <- c("chr", "start", "end")
+    coords <- coords[as.numeric(coords$end) >= as.numeric(coords$start) - 1, ]
     bed <- makeGRangesFromDataFrame(coords)
     mcols(bed)$circID <- circIDs
     
