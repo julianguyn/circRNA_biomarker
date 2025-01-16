@@ -9,8 +9,10 @@ suppressPackageStartupMessages({
     library(org.Hs.eg.db)
     library(dplyr)
     library(tidyr)
+    library(caret)
 })
 
+set.seed(200) 
 
 ############################################################
 # Load in data 
@@ -29,7 +31,7 @@ getFeats <- function(df) {
 
     # initiate dataframe to store results
     res <- data.frame(matrix(nrow = ncol(df)-1, ncol = 4))
-    rownames(res) <- colnames(df[,-c(1)])
+    rownames(res) <- colnames(df)
     colnames(res) <- c("MedianExp", "Length", "NExons", "GC")
 
     # compute median expression
@@ -205,3 +207,11 @@ save(ciri_gcsi_ft, ciri_ccle_ft, ciri_gdsc_ft,
 
 #txdb <- loadDb("TxDb.GENCODE.v45.sqlite")
 #exons <- exonsBy(txdb, by = "gene")
+
+
+############################################################
+# Load in circRNA stability and features
+############################################################
+
+load("../results/data/temp/circ_stability.RData")
+load("../results/data/circ_stability_features.RData")
