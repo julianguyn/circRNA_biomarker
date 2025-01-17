@@ -87,14 +87,17 @@ ccle_gdsc$tissue <- ccle_gdsc$ccle_tissue
 ccle_gdsc$tissue[ccle_gdsc$tissue %in% c("Autonomic Ganglia", "Central Nervous System")] <- "Brain"
 ccle_gdsc$tissue[ccle_gdsc$tissue %in% c("Oesophagus")] <- "Head-Neck"
 
-# keep only tissue groups with at least 4 cell lines
+# keep only tissue groups with at least 4 cell lines and "Other" tissue category
 keep <- names(table(gcsi_ccle$tissue)[table(gcsi_ccle$tissue) > 4])
+keep[-which(keep == "Other")]
 gcsi_ccle <- gcsi_ccle[gcsi_ccle$tissue %in% keep,]
 
 keep <- names(table(gcsi_gdsc$tissue)[table(gcsi_gdsc$tissue) > 4])
+keep[-which(keep == "Other")]
 gcsi_gdsc <- gcsi_gdsc[gcsi_gdsc$tissue %in% keep,]
 
 keep <- names(table(ccle_gdsc$tissue)[table(ccle_gdsc$tissue) > 4])
+keep[-which(keep == "Other")]
 ccle_gdsc <- ccle_gdsc[ccle_gdsc$tissue %in% keep,]
 
 
