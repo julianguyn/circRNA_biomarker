@@ -106,6 +106,9 @@ fcrc_gcsi <- subset_df(fcrc_gcsi, fcrc_common)
 fcrc_ccle <- subset_df(fcrc_ccle, fcrc_common)
 fcrc_gdsc <- subset_df(fcrc_gdsc, fcrc_common)
 
+save(ciri_gcsi, ciri_ccle, ciri_gdsc, circ_gcsi, circ_ccle, circ_gdsc,
+     cfnd_gcsi, cfnd_ccle, cfnd_gdsc, fcrc_gcsi, fcrc_ccle, fcrc_gdsc,
+     file = "../results/data/temp/circ_stability_subsetdf.RData")
 
 # ========== Compute pairwise spearman correlations from circRNA datasets ========== #
 
