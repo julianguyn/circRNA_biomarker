@@ -30,12 +30,12 @@ load("../results/data/temp/circ_stability_subsetdf.RData")
 getFeats <- function(df) {
 
     # initiate dataframe to store results
-    res <- data.frame(matrix(nrow = ncol(df)-1, ncol = 4))
+    res <- data.frame(matrix(nrow = ncol(df), ncol = 4))
     rownames(res) <- colnames(df)
     colnames(res) <- c("MedianExp", "Length", "NExons", "GC")
 
     # compute median expression
-    res$MedianExp <- colSums(df[,2:ncol(df)])/48 |> as.numeric()
+    res$MedianExp <- colSums(df)/48 |> as.numeric()
 
     # compute length
     coords <- str_split(rownames(res), "\\.", simplify = T) |> as.data.frame()
