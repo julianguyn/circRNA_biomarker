@@ -1,12 +1,24 @@
 # Script to correlate circRNA expression across biological replicates (alternative to UMAP)
 
 # load libraries
-suppressMessages(library(data.table))
-library(reshape2)
-library(ggplot2)
+suppressPackageStartupMessages({
+    library(data.table)
+    library(reshape2)
+    library(ggplot2)
+})
+
+
+############################################################
+# Load in processed expression data
+############################################################
 
 # load processed expression data
 load("../results/data/umapdf.RData")
+
+
+############################################################
+# Pairwise correlations of biological reps
+############################################################
 
 # function to parse processed dataframe and perform pairwise correlations
 corr_reps <- function(df, cell_line_labels) {
@@ -50,7 +62,6 @@ corr_reps <- function(df, cell_line_labels) {
     return(correlations)
 }
 
-# compute correlations 
 gexpr_corr <- corr_reps(gexpr_df, cell_line_gexpr)
 isoform_corr <- corr_reps(isoform_df, cell_line_isoforms)
 ciri_corr <- corr_reps(ciri_df, cell_line_ciri)
@@ -58,14 +69,13 @@ circ_corr <- corr_reps(circ_df, cell_line_circ)
 cfnd_corr <- corr_reps(cfnd_df, cell_line_cfnd)
 fcrc_corr <- corr_reps(fcrc_df, cell_line_fcrc)
 
-save(ciri_corr, circ_corr, cfnd_corr, fcrc_corr, gexpr_corr, isoform_corr, file = "../results/data/corr_expr.RData")
+save(ciri_corr, circ_corr, cfnd_corr, fcrc_corr, gexpr_corr, isoform_corr, 
+     file = "../results/data/corr_expr.RData")
 
 
-#######################
-### Plot Stability ####
-#######################
-
-# ========== Compare correlation of biological replicates ========== #
+############################################################
+# Format corrleation matrices for plotting
+############################################################
 
 # function to format correlation dataframes
 format_df <- function(df, label) {
@@ -91,6 +101,11 @@ toPlot[is.na(toPlot)] <- 0
 toPlot$label <- factor(toPlot$label, levels = c("Gene Expression", "Isoforms", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 
 
+############################################################
+# Plot correlation of biological reps
+############################################################
+
+# violin plots
 png("../results/figures/figure2/correlate_reps.png", width=200, height=75, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = Correlation, y = label)) + 
     geom_violin(aes(fill = label, alpha = PSet), scale = "width", width = 1.1, position = position_dodge(width = 0.8)) + 
@@ -102,7 +117,7 @@ ggplot(toPlot, aes(x = Correlation, y = label)) +
           legend.key.size = unit(0.5, 'cm')) 
 dev.off()
 
-# plot density plot
+# density plots
 png("../results/figures/figure2/corr_dist_density.png", width=150, height=50, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = Correlation)) + geom_density(aes(fill = label), alpha = 0.4, size = 0.5) + 
         theme_classic() +  
