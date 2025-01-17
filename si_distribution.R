@@ -1,67 +1,69 @@
-suppressMessages(library(reshape2))
-suppressMessages(library(ggplot2))
-suppressMessages(library(ggpubr))
-suppressMessages(library(matrixStats))
-suppressMessages(library(data.table))
+# load libraries
+suppressPackageStartupMessages({
+    library(data.table)
+    library(matrixStats)
+    library(reshape2)
+    library(ggplot2)
+    library(ggpubr)
+})
 
 
-
-######################################################
-########## Get circRNA transcript stability ##########
-######################################################
+############################################################
+# Load in circRNA expression data
+############################################################
 
 # load circRNA expression data
-ciri_gcsi <- fread("../data/processed_cellline/common_samples/CIRI2/ciri_gcsi_counts.tsv", data.table = F)
-ciri_gdsc <- fread("../data/processed_cellline/common_samples/CIRI2/ciri_gdsc_counts.tsv", data.table = F)
-ciri_ccle <- fread("../data/processed_cellline/common_samples/CIRI2/ciri_ccle_counts.tsv", data.table = F)
+path = "../data/processed_cellline/common_samples/" 
 
-circ_gcsi <- fread("../data/processed_cellline/common_samples/CIRCexplorer2/circ_gcsi_counts.tsv", data.table = F)
-circ_gdsc <- fread("../data/processed_cellline/common_samples/CIRCexplorer2/circ_gdsc_counts.tsv", data.table = F)
-circ_ccle <- fread("../data/processed_cellline/common_samples/CIRCexplorer2/circ_ccle_counts.tsv", data.table = F)
+ciri_gcsi <- fread(paste0(path, "CIRI2/ciri_gcsi_counts.tsv", data.table = F))
+ciri_gdsc <- fread(paste0(path, "CIRI2/ciri_gdsc_counts.tsv", data.table = F))
+ciri_ccle <- fread(paste0(path, "CIRI2/ciri_ccle_counts.tsv", data.table = F))
 
-cfnd_gcsi <- fread("../data/processed_cellline/common_samples/circRNA_finder/cfnd_gcsi_counts.tsv", data.table = F)
-cfnd_gdsc <- fread("../data/processed_cellline/common_samples/circRNA_finder/cfnd_gdsc_counts.tsv", data.table = F)
-cfnd_ccle <- fread("../data/processed_cellline/common_samples/circRNA_finder/cfnd_ccle_counts.tsv", data.table = F)
+circ_gcsi <- fread(paste0(path, "CIRCexplorer2/circ_gcsi_counts.tsv", data.table = F))
+circ_gdsc <- fread(paste0(path, "CIRCexplorer2/circ_gdsc_counts.tsv", data.table = F))
+circ_ccle <- fread(paste0(path, "CIRCexplorer2/circ_ccle_counts.tsv", data.table = F))
 
-fcrc_gcsi <- fread("../data/processed_cellline/common_samples/find_circ/fcrc_gcsi_counts.tsv", data.table = F)
-fcrc_gdsc <- fread("../data/processed_cellline/common_samples/find_circ/fcrc_gdsc_counts.tsv", data.table = F)
-fcrc_ccle <- fread("../data/processed_cellline/common_samples/find_circ/fcrc_ccle_counts.tsv", data.table = F)
+cfnd_gcsi <- fread(paste0(path, "circRNA_finder/cfnd_gcsi_counts.tsv", data.table = F))
+cfnd_gdsc <- fread(paste0(path, "circRNA_finder/cfnd_gdsc_counts.tsv", data.table = F))
+cfnd_ccle <- fread(paste0(path, "circRNA_finder/cfnd_ccle_counts.tsv", data.table = F))
 
-# filter circRNA transcripts with low detection rates
+fcrc_gcsi <- fread(paste0(path, "find_circ/fcrc_gcsi_counts.tsv", data.table = F))
+fcrc_gdsc <- fread(paste0(path, "find_circ/fcrc_gdsc_counts.tsv", data.table = F))
+fcrc_ccle <- fread(paste0(path, "find_circ/fcrc_ccle_counts.tsv", data.table = F))
+
+
+############################################################
+# Filter circRNA transcripts with low detection rates
+############################################################
 # distribution: table(colSums(ciri_gcsi_sub == 0)), shows the number of 0 in each column
 
-ciri_gcsi <- ciri_gcsi[,-which(colnames(ciri_gcsi) %in% names(which(colSums(ciri_gcsi == 0) > 45)))]
-ciri_ccle <- ciri_ccle[,-which(colnames(ciri_ccle) %in% names(which(colSums(ciri_ccle == 0) > 45)))]
-ciri_gdsc <- ciri_gdsc[,-which(colnames(ciri_gdsc) %in% names(which(colSums(ciri_gdsc == 0) > 45)))]
+# function to filter low detection transcripts
+filter_circ <- function(df) {
+    df <- df[,-which(colnames(df) %in% names(which(colSums(df == 0) > 45)))]
+    print(dim(df))
+    return(df)
+}
 
-print(dim(ciri_gcsi))
-print(dim(ciri_ccle))
-print(dim(ciri_gdsc))
+ciri_gcsi <- filter_circ(ciri_gcsi)
+ciri_ccle <- filter_circ(ciri_ccle)
+ciri_gdsc <- filter_circ(ciri_gdsc)
 
-circ_gcsi <- circ_gcsi[,-which(colnames(circ_gcsi) %in% names(which(colSums(circ_gcsi == 0) > 45)))]
-circ_ccle <- circ_ccle[,-which(colnames(circ_ccle) %in% names(which(colSums(circ_ccle == 0) > 45)))]
-circ_gdsc <- circ_gdsc[,-which(colnames(circ_gdsc) %in% names(which(colSums(circ_gdsc == 0) > 45)))]
+circ_gcsi <- filter_circ(circ_gcsi)
+circ_ccle <- filter_circ(circ_ccle)
+circ_gdsc <- filter_circ(circ_gdsc)
 
-print(dim(circ_gcsi))
-print(dim(circ_ccle))
-print(dim(circ_gdsc))
+cfnd_gcsi <- filter_circ(cfnd_gcsi)
+cfnd_ccle <- filter_circ(cfnd_ccle)
+cfnd_gdsc <- filter_circ(cfnd_gdsc)
 
-cfnd_gcsi <- cfnd_gcsi[,-which(colnames(cfnd_gcsi) %in% names(which(colSums(cfnd_gcsi == 0) > 45)))]
-cfnd_ccle <- cfnd_ccle[,-which(colnames(cfnd_ccle) %in% names(which(colSums(cfnd_ccle == 0) > 45)))]
-cfnd_gdsc <- cfnd_gdsc[,-which(colnames(cfnd_gdsc) %in% names(which(colSums(cfnd_gdsc == 0) > 45)))]
+fcrc_gcsi <- filter_circ(fcrc_gcsi)
+fcrc_ccle <- filter_circ(fcrc_ccle)
+fcrc_gdsc <- filter_circ(fcrc_gdsc)
 
-print(dim(cfnd_gcsi))
-print(dim(cfnd_ccle))
-print(dim(cfnd_gdsc))
 
-fcrc_gcsi <- fcrc_gcsi[,-which(colnames(fcrc_gcsi) %in% names(which(colSums(fcrc_gcsi == 0) > 45)))]
-fcrc_ccle <- fcrc_ccle[,-which(colnames(fcrc_ccle) %in% names(which(colSums(fcrc_ccle == 0) > 45)))]
-fcrc_gdsc <- fcrc_gdsc[,-which(colnames(fcrc_gdsc) %in% names(which(colSums(fcrc_gdsc == 0) > 45)))]
-
-print(dim(fcrc_gcsi))
-print(dim(fcrc_ccle))
-print(dim(fcrc_gdsc))
-
+############################################################
+# Get common transcripts
+############################################################
 
 # get common circRNA transcripts found in all psets for each pipeline
 ciri_common <- intersect(intersect(colnames(ciri_gcsi), colnames(ciri_ccle)), colnames(ciri_gdsc))
@@ -74,19 +76,17 @@ print(length(circ_common))
 print(length(cfnd_common))
 print(length(fcrc_common))
 
+
+############################################################
+# Keep only common transcripts
+############################################################
+
 # function to order circRNA dataframes and keep only transcripts found in all psets for each pipeline
 subset_df <- function(df, common_transcripts) {
-
-    # keep circRNA transcripts found in all psets for each pipeline
     df <- df[,which(colnames(df) %in% common_transcripts)]
-
-    # order dataframe
     df <- df[order(df$sample),order(colnames(df))]
-
-    # remove sample names
     rownames(df) <- df$sample
     df$sample <- NULL
-
     return(df)
 }
 
@@ -106,34 +106,32 @@ fcrc_gcsi <- subset_df(fcrc_gcsi, fcrc_common)
 fcrc_ccle <- subset_df(fcrc_ccle, fcrc_common)
 fcrc_gdsc <- subset_df(fcrc_gdsc, fcrc_common)
 
+# save subsetted dataframes for featuer importance
 save(ciri_gcsi, ciri_ccle, ciri_gdsc, circ_gcsi, circ_ccle, circ_gdsc,
      cfnd_gcsi, cfnd_ccle, cfnd_gdsc, fcrc_gcsi, fcrc_ccle, fcrc_gdsc,
      file = "../results/data/temp/circ_stability_subsetdf.RData")
 
-# ========== Compute pairwise spearman correlations from circRNA datasets ========== #
+
+
+############################################################
+# Compute pairwise spearman correlations
+############################################################
 
 # function to compute pairwise spearman correlations
-compute_spearman <- function(gcsi_df, ccle_df, gdsc_df, random = FALSE, iter = 1) {
-
-    # INPUTS:
-    #   gcsi_df, ccle_df, gdsc_df: PSet-specific dataframes from the subset_df() function
-    #   random: TRUE for random sampling of sample names, FALSE otherwise
-    #   iter: number of iterations to be performed (for random sampling and SI computation)
-
+compute_spearman <- function(
+    gcsi_df, ccle_df, gdsc_df,      # PSet-specific dataframes from the subset_df() function
+    random = FALSE,                 # random: TRUE for random sampling of sample names, FALSE otherwise
+    iter = 1                        # iter: number of iterations (for random sampling)
+) {
     # initialize dataframe to store results
     correlations <- data.frame(matrix(nrow=0, ncol=3))
-
-    # loop through for number of iterations
     for (i in 1:iter) {
 
-        # if random == TRUE
         if (random == TRUE) {
-
             # randomly shuffle cell line names
             rownames(gcsi_df) <- sample(rownames(gcsi_df))
             rownames(ccle_df) <- sample(rownames(ccle_df))
             rownames(gdsc_df) <- sample(rownames(gdsc_df))
-
             # order dataframe
             gcsi_df <- gcsi_df[order(rownames(gcsi_df)),]
             ccle_df <- ccle_df[order(rownames(ccle_df)),]
@@ -142,18 +140,14 @@ compute_spearman <- function(gcsi_df, ccle_df, gdsc_df, random = FALSE, iter = 1
         
         # loop through each common transcript
         for (i in 1:ncol(gcsi_df)) {
-
             # compute correlations of transcript expression for pairs of psets
             gcsi_ccle_spearman <- suppressWarnings(cor(x = as.numeric(gcsi_df[, i]), y = as.numeric(ccle_df[, i]), method = "spearman")) #gCSI vs CCLE
             gcsi_gdsc_spearman <- suppressWarnings(cor(x = as.numeric(gcsi_df[, i]), y = as.numeric(gdsc_df[, i]), method = "spearman")) #gCSI vs GDSC
             gdsc_ccle_spearman <- suppressWarnings(cor(x = as.numeric(gdsc_df[, i]), y = as.numeric(ccle_df[, i]), method = "spearman")) #GDSC vs CCLE
-        
             # combine results
             correlations <- rbind(correlations, c(gcsi_ccle_spearman, gcsi_gdsc_spearman, gdsc_ccle_spearman))
         }
-
     }
-    
     colnames(correlations) <- c("gCSI/CCLE", "gCSI/GDSC2", "GDSC2/CCLE")
     return(correlations)
 }
@@ -178,13 +172,20 @@ save(ciri_stability_random, circ_stability_random, cfnd_stability_random, fcrc_s
      file = "../results/data/temp/circ_stability_random.RData")
 
 
-###########################
-#### Isoform stability ####
-###########################
+
+############################################################
+# Load isoform and gene expression data
+############################################################
 
 load("../results/data/isoform_expression.RData")
+load("../results/data/gene_expression.RData")
 
-#function to compute spearman correlation for each dataset pair (gCSI/CCLE; gCSI/GDSC; GDSC/CCLE)                                 
+
+############################################################
+# Compute isoform stability
+############################################################
+
+# function to compute spearman correlation for each dataset pair (gCSI/CCLE; gCSI/GDSC; GDSC/CCLE)                                 
 compute_spearman  <- function(x){
   i <- x
   gcsi_ccle_spearman <- suppressWarnings(cor(x=as.numeric(expr_gcsi_i[i,]), y=as.numeric(expr_ccle_i[i,]), method="spearman"))
@@ -195,7 +196,6 @@ compute_spearman  <- function(x){
   return(combined)
 }                                         
 
-##compute pearson & spearman
 transcripts <- rownames(expr_gcsi_i)                                     
 
 spearman_compute <- sapply(transcripts, compute_spearman)
@@ -203,34 +203,11 @@ transcript_stability <- as.data.frame(t(as.data.frame(spearman_compute)))
 colnames(transcript_stability) <- c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")  
 
 
-##compute median expression for each transcript across biological replicates for each dataset
-gcsi_matrix <- as.matrix(expr_gcsi_i)                                 
-ccle_matrix <- as.matrix(expr_ccle_i)  
-gdsc_matrix <- as.matrix(expr_gdsc_i)
+############################################################
+# Compute gene expression stability
+############################################################
 
-gcsi_median <- as.numeric(rowMedians(gcsi_matrix))                                 
-ccle_median <- as.numeric(rowMedians(ccle_matrix))                                  
-gdsc_median <- as.numeric(rowMedians(gdsc_matrix))                                      
-
-
-##compile everything into one data frame                                 
-transcript_stability$transcript_id <- transcripts
-rownames(transcript_stability) <- transcript_stability$transcript_id
-transcript_stability$gcsi_median <- gcsi_median
-transcript_stability$ccle_median <- ccle_median
-transcript_stability$gdsc_median <- gdsc_median
-
-
-#remove transcripts that have median expression of 0 across all datasets
-transcript_stability <- transcript_stability[-which(transcript_stability$gcsi_median == 0 & transcript_stability$ccle_median == 0 & transcript_stability$gdsc_median == 0),]  
-
-########################
-#### Gene Stability ####
-########################
-
-load("../results/data/gene_expression.RData")
-
-#function to compute spearman correlation for each dataset pair (gCSI/CCLE; gCSI/GDSC; GDSC/CCLE)                                 
+# function to compute spearman correlation for each dataset pair (gCSI/CCLE; gCSI/GDSC; GDSC/CCLE)                                 
 compute_spearman  <- function(x){
   i <- x
   gcsi_ccle_spearman <- suppressWarnings(cor(x=as.numeric(expr_gcsi_p[i,]), y=as.numeric(expr_ccle_p[i,]), method="spearman"))
@@ -241,26 +218,48 @@ compute_spearman  <- function(x){
   return(combined)
 }                                         
 
-##compute pearson & spearman
 genes <- rownames(expr_gcsi_p)                                     
-
 
 spearman_compute <- sapply(genes, compute_spearman)
 gene_stability <- as.data.frame(t(as.data.frame(spearman_compute)))
 colnames(gene_stability) <- c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")  
 
 
-##compute median expression for each gene across biological replicates for each dataset
+############################################################
+# Compute median expression for transcripts
+############################################################
+
+# format matrices
+gcsi_matrix <- as.matrix(expr_gcsi_i)                                 
+ccle_matrix <- as.matrix(expr_ccle_i)  
+gdsc_matrix <- as.matrix(expr_gdsc_i)
+
 gcsi_matrix <- as.matrix(expr_gcsi_p)                                 
 ccle_matrix <- as.matrix(expr_ccle_p)  
 gdsc_matrix <- as.matrix(expr_gdsc_p)
 
+
+# compute median expression for each transcript across biological replicates for each dataset
 gcsi_median <- as.numeric(rowMedians(gcsi_matrix))                                 
 ccle_median <- as.numeric(rowMedians(ccle_matrix))                                  
-gdsc_median <- as.numeric(rowMedians(gdsc_matrix))                                      
+gdsc_median <- as.numeric(rowMedians(gdsc_matrix))        
+
+gcsi_median <- as.numeric(rowMedians(gcsi_matrix))                                 
+ccle_median <- as.numeric(rowMedians(ccle_matrix))                                  
+gdsc_median <- as.numeric(rowMedians(gdsc_matrix)) 
 
 
-##compile everything into one data frame                                 
+# compile isoforms into one data frame                                 
+transcript_stability$transcript_id <- transcripts
+rownames(transcript_stability) <- transcript_stability$transcript_id
+transcript_stability$gcsi_median <- gcsi_median
+transcript_stability$ccle_median <- ccle_median
+transcript_stability$gdsc_median <- gdsc_median
+
+#remove transcripts that have median expression of 0 across all datasets
+transcript_stability <- transcript_stability[-which(transcript_stability$gcsi_median == 0 & transcript_stability$ccle_median == 0 & transcript_stability$gdsc_median == 0),]  
+           
+# compile gene expression into one data frame                                 
 gene_stability$gene_id <- genes
 rownames(gene_stability) <- gene_stability$gene_id
 gene_stability$gcsi_median <- gcsi_median
@@ -268,11 +267,9 @@ gene_stability$ccle_median <- ccle_median
 gene_stability$gdsc_median <- gdsc_median
 
 
-#######################
-### Plot Stability ####
-#######################
-
-# ========== Compare stability indices of molecular features ========== #
+############################################################
+# Plot comparison of SI indices
+############################################################
 
 # function to format stability dataframes
 format_df <- function(df, label) {
@@ -312,9 +309,9 @@ ggplot(toPlot, aes(x = label, y = Stability)) +
 dev.off()
 
 
-# ========== Compare circRNA stability withh random ========== #
-
-library(reshape2)
+############################################################
+# Plot comparison of SI indices with random shuffling
+############################################################
 
 # label dataframes
 ciri_stability$label <- "CIRI2-NonRandom"
@@ -337,7 +334,6 @@ toPlot$PSet <- factor(toPlot$PSet, levels = c("CIRI2", "CIRCexplorer2", "circRNA
 
 # plot
 png("../results/figures/figure2/stability_randomized.png", width=300, height=150, units='mm', res = 600, pointsize=80)
-png("stability_randomized.png", width=150, height=150, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = variable, y = value, fill = Label)) + 
     #geom_violin(aes(fill = Label), alpha = 0.8) + 
     geom_boxplot() + facet_grid(PSet~.) + theme_classic() + 
