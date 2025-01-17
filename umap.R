@@ -4,7 +4,6 @@ suppressMessages(library(tidyverse))
 suppressMessages(library(umap))  
 suppressMessages(library(ggplot2))
 suppressMessages(library(ggpubr))
-suppressMessages(library(viridis))
 suppressMessages(library(dplyr))
 set.seed(101)
 
@@ -77,21 +76,10 @@ cell_line_fcrc <- c(fcrc_gcsi_sub$sample, fcrc_ccle_sub$sample, fcrc_gdsc_sub$sa
 
 
 # remove cell line labels
-ciri_gcsi_sub$sample <- NULL
-ciri_ccle_sub$sample <- NULL
-ciri_gdsc_sub$sample <- NULL
-
-circ_gcsi_sub$sample <- NULL
-circ_ccle_sub$sample <- NULL
-circ_gdsc_sub$sample <- NULL
-
-cfnd_gcsi_sub$sample <- NULL
-cfnd_ccle_sub$sample <- NULL
-cfnd_gdsc_sub$sample <- NULL
-
-fcrc_gcsi_sub$sample <- NULL
-fcrc_ccle_sub$sample <- NULL
-fcrc_gdsc_sub$sample <- NULL
+ciri_gcsi_sub$sample <- ciri_ccle_sub$sample <- ciri_gdsc_sub$sample <- NULL
+circ_gcsi_sub$sample <- circ_ccle_sub$sample <- circ_gdsc_sub$sample <- NULL
+cfnd_gcsi_sub$sample <- cfnd_ccle_sub$sample <- cfnd_gdsc_sub$sample <- NULL
+fcrc_gcsi_sub$sample <- fcrc_ccle_sub$sample <- fcrc_gdsc_sub$sample <- NULL
 
 
 # filter circRNA transcripts with low detection rates
@@ -135,12 +123,12 @@ transcripts <- data.frame(c(colnames(ciri_gcsi_filtered), colnames(ciri_ccle_fil
                             colnames(circ_gcsi_filtered), colnames(circ_ccle_filtered), colnames(circ_gdsc_filtered),
                             colnames(cfnd_gcsi_filtered), colnames(cfnd_ccle_filtered), colnames(cfnd_gdsc_filtered),
                             colnames(fcrc_gcsi_filtered), colnames(fcrc_ccle_filtered), colnames(fcrc_gdsc_filtered)))
-colnames(transcripts) <- "circRNAID"
-transcript_counts <- transcripts %>% count(circRNAID)
+colnames(transcripts) <- "transcriptID"
+transcript_counts <- transcripts %>% count(transcriptID)
 
 # remove circRNA transcripts that are only in one method_dataset object (keep any in 2 or more)
 transcript_counts <- transcript_counts[-which(transcript_counts$n == 1),] 
-common_transcripts <- transcript_counts$circRNAID
+common_transcripts <- transcript_counts$transcriptID
 
 print(length(common_transcripts))
 
