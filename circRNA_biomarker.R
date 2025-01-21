@@ -92,7 +92,7 @@ computeCI <- function(circ_counts, sensitivity_data, pset_label, pipeline_label)
         combinations <- expand.grid(circRNA = rownames(circ_counts), drug = rownames(sensitivity_data))
         num_combinations <- nrow(combinations)
 
-        if (dim(circ_counts) > 0) {
+        if (nrow(circ_counts) > 0) {
                 # initialize columns to store univariable results
                 combinations$ci <- NA
                 combinations$pvalue <- NA
