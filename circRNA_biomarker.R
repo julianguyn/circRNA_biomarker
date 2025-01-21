@@ -92,49 +92,51 @@ computeCI <- function(circ_counts, sensitivity_data, pset_label, pipeline_label)
         combinations <- expand.grid(circRNA = rownames(circ_counts), drug = rownames(sensitivity_data))
         num_combinations <- nrow(combinations)
 
-        # initialize columns to store univariable results
-        combinations$ci <- NA
-        combinations$pvalue <- NA
-        combinations$se <- NA
-        combinations$upper <- NA
-        combinations$lower <- NA
+        if (dim(circ_counts) > 0) {
+                # initialize columns to store univariable results
+                combinations$ci <- NA
+                combinations$pvalue <- NA
+                combinations$se <- NA
+                combinations$upper <- NA
+                combinations$lower <- NA
 
-        # extract drug and feature data into lists
-        sen_list <- lapply(rownames(sensitivity_data), function(drug) as.numeric(sensitivity_data[drug, ])) # each is drug response for one drug
-        feat_list <- lapply(rownames(circ_counts), function(circRNA) as.numeric(circ_counts[circRNA, ])) # each is expression for each transcript
+                # extract drug and feature data into lists
+                sen_list <- lapply(rownames(sensitivity_data), function(drug) as.numeric(sensitivity_data[drug, ])) # each is drug response for one drug
+                feat_list <- lapply(rownames(circ_counts), function(circRNA) as.numeric(circ_counts[circRNA, ])) # each is expression for each transcript
 
-        # compute concordance index for each feature-drug pair
-        for (i in 1:num_combinations) {
-                if (i %% 10000 == 0) { print(paste0(i, " out of ", num_combinations, " complete"))}
-                
-                # compute concordance index
-                ci <- survcomp::concordance.index(
-                sen_list[[which(rownames(sensitivity_data) == combinations$drug[i])]],                  # sensitivity data for all samples
-                surv.time = feat_list[[which(rownames(circ_counts) == combinations$circRNA[i])]],          # feature values for all samples
-                surv.event = rep(1, ncol(circ_counts)),
-                outx = TRUE,
-                method = "noether",
-                na.rm = TRUE
-                )
+                # compute concordance index for each feature-drug pair
+                for (i in 1:num_combinations) {
+                        if (i %% 10000 == 0) { print(paste0(i, " out of ", num_combinations, " complete"))}
+                        
+                        # compute concordance index
+                        ci <- survcomp::concordance.index(
+                        sen_list[[which(rownames(sensitivity_data) == combinations$drug[i])]],                  # sensitivity data for all samples
+                        surv.time = feat_list[[which(rownames(circ_counts) == combinations$circRNA[i])]],          # feature values for all samples
+                        surv.event = rep(1, ncol(circ_counts)),
+                        outx = TRUE,
+                        method = "noether",
+                        na.rm = TRUE
+                        )
 
-                combinations$ci[i] <- ci$c.index
-                combinations$pvalue[i] <- ci$p.value
-                combinations$se[i] <- ci$se
-                combinations$upper[i] <- ci$upper
-                combinations$lower[i] <- ci$lower
+                        combinations$ci[i] <- ci$c.index
+                        combinations$pvalue[i] <- ci$p.value
+                        combinations$se[i] <- ci$se
+                        combinations$upper[i] <- ci$upper
+                        combinations$lower[i] <- ci$lower
+                }
+
+                # filtering and multiple test correction
+                #combinations <- combinations[complete.cases(combinations$pvalue),]
+                #combinations$FDR <- p.adjust(combinations$pvalue, method = "BH")
+                #combinations$FDRsig <- combinations$FDR < 0.05
+
+                # format dataframe for plotting (order by ci and add variable rank)
+                combinations <- combinations[order(combinations$ci),]
+                combinations$rank <- seq_len(nrow(combinations))
+                combinations$pairs <- paste0(combinations$circRNA, "-", combinations$drug)
+                combinations$pset <- pset_label
+                combinations$pipeline <- pipeline_label
         }
-
-        # filtering and multiple test correction
-        #combinations <- combinations[complete.cases(combinations$pvalue),]
-        #combinations$FDR <- p.adjust(combinations$pvalue, method = "BH")
-        #combinations$FDRsig <- combinations$FDR < 0.05
-
-        # format dataframe for plotting (order by ci and add variable rank)
-        combinations <- combinations[order(combinations$ci),]
-        combinations$rank <- seq_len(nrow(combinations))
-        combinations$pairs <- paste0(combinations$circRNA, "-", combinations$drug)
-        combinations$pset <- pset_label
-        combinations$pipeline <- pipeline_label
 
         print(dim(combinations))
 
