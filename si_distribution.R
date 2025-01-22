@@ -266,6 +266,8 @@ gene_stability$gcsi_median <- gcsi_median
 gene_stability$ccle_median <- ccle_median
 gene_stability$gdsc_median <- gdsc_median
 
+save(gene_stability, transcript_stability, 
+     file = "../results/data/temp/gene_isoform_stability.RData")
 
 ############################################################
 # Plot comparison of SI indices
