@@ -11,7 +11,7 @@ suppressPackageStartupMessages({
 })
 
 options(stringsAsFactors = FALSE)
-set.seed(123)
+set.seed(101)
 
 ############################################################
 # Load in data 
@@ -155,13 +155,16 @@ corr_reps <- function(exp_df, samples) {
     return(correlations)
 }
 
+# load in gene expression and isoform correlations
+load("../results/data/corr_expr.RData")
+
 # compute correlations 
 ciri_corr <- corr_reps(ciri_df, cell_line_ciri)
 circ_corr <- corr_reps(circ_df, cell_line_circ)
 cfnd_corr <- corr_reps(cfnd_df, cell_line_cfnd)
 fcrc_corr <- corr_reps(fcrc_df, cell_line_fcrc)
 
-save(ciri_corr, circ_corr, cfnd_corr, fcrc_corr, file = "../results/data/ge_corr_expr.RData")
+save(gexpr_corr, isoform_corr, ciri_corr, circ_corr, cfnd_corr, fcrc_corr, file = "../results/data/ge_corr_expr.RData")
 
 
 ############################################################
@@ -169,7 +172,7 @@ save(ciri_corr, circ_corr, cfnd_corr, fcrc_corr, file = "../results/data/ge_corr
 ############################################################
 
 # set palette for plotting
-pal = c("#839788", "#BFD7EA", "#BA9790", "#D5BC8A")
+pal = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A")
 
 # function to format correlation dataframes
 format_df <- function(df, label) {
@@ -180,15 +183,19 @@ format_df <- function(df, label) {
     return(toPlot)
 }
 
+gexpr_corr <- format_df(gexpr_corr, "Gene Expression")
+isoform_corr <- format_df(isoform_corr, "Isoforms")
 ciri_corr <- format_df(ciri_corr, "CIRI2")
 circ_corr <- format_df(circ_corr, "CIRCexplorer2")
 cfnd_corr <- format_df(cfnd_corr, "circRNA_finder")
 fcrc_corr <- format_df(fcrc_corr, "find_circ")
 
 # merge results for plotting
-toPlot <- rbind(ciri_corr, circ_corr, cfnd_corr, fcrc_corr)
+toPlot <- rbind(gexpr_corr, isoform_corr, 
+                ciri_corr, circ_corr, 
+                cfnd_corr, fcrc_corr)
 toPlot[is.na(toPlot)] <- 0
-toPlot$label <- factor(toPlot$label, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+toPlot$label <- factor(toPlot$label, levels = c("Gene Expression", "Isoforms", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 
 png("../results/figures/figure5/correlate_reps_ge.png", width=200, height=75, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = Correlation, y = label)) + 
@@ -199,7 +206,7 @@ ggplot(toPlot, aes(x = Correlation, y = label)) +
     labs(x = "Spearman Correlation", fill = "", alpha = "", y = "") +
     scale_fill_manual(values = pal) + 
     scale_alpha_manual(values = c(0.2, 0.5, 0.9)) +
-    scale_y_discrete(limits = c("find_circ", "circRNA_finder", "CIRCexplorer2", "CIRI2")) + 
+    scale_y_discrete(limits = c("find_circ", "circRNA_finder", "CIRCexplorer2", "CIRI2", "Isoforms", "Gene Expression")) + 
     theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.5, 'cm')) 
 dev.off()
 
@@ -233,6 +240,14 @@ circ_umap <- umap_fn(circ_df, cell_line_circ)
 cfnd_umap <- umap_fn(cfnd_df, cell_line_cfnd) 
 fcrc_umap <- umap_fn(fcrc_df, cell_line_fcrc) 
 
+# load in gene expression and isoform df
+load("../results/data/umapdf.RData")
+
+cell_line_gexpr <- data.frame(Sample = cell_line_gexpr, PSet = rep(c("gCSI", "CCLE", "GDSC"), each = 48))
+cell_line_isoforms <- data.frame(Sample = cell_line_isoforms, PSet = rep(c("gCSI", "CCLE", "GDSC"), each = 48))
+
+gexpr_umap <- umap_fn(gexpr_df, cell_line_gexpr) 
+isoform_umap <- umap_fn(isoform_df, cell_line_isoforms)
 
 ############################################################
 # Plot UMAP projections
@@ -259,15 +274,19 @@ plot_umap <- function(umap_df, title) {
   return(p)
 }
 
-p1 <- plot_umap(ciri_umap, "CIRI2 circRNA Expression")
-p2 <- plot_umap(circ_umap, "CIRCexplorer2 circRNA Expression")
-p3 <- plot_umap(cfnd_umap, "circRNA_finder circRNA Expression")
-p4 <- plot_umap(fcrc_umap, "find_circ circRNA Expression")
+p1 <- plot_umap(gexpr_umap, "Gene Expression")
+p2 <- plot_umap(isoform_umap, "Isoform Expression")
+p3 <- plot_umap(ciri_umap, "CIRI2 circRNA Expression")
+p4 <- plot_umap(circ_umap, "CIRCexplorer2 circRNA Expression")
+p5 <- plot_umap(cfnd_umap, "circRNA_finder circRNA Expression")
+p6 <- plot_umap(fcrc_umap, "find_circ circRNA Expression")
 
 
-png("../results/figures/figure5/umaps_ge.png", width=275, height=225, units='mm', res = 600, pointsize=80)
-ggarrange(p1, p3, p2, p4, ncol = 2, nrow = 2,
-          common.legend = TRUE, legend = "right")
+png("../results/figures/figure5/umaps_ge.png", width=400, height=225, units='mm', res = 600, pointsize=80)
+ggarrange(p1, p3, p5, p2, p4, p6,
+          ncol = 3, nrow = 2,
+          common.legend = TRUE,
+          legend = "right")
 dev.off()
 
 ############################################################
@@ -286,20 +305,22 @@ compute_dist <- function(umap_df, label) {
     return(distances)
 }
 
+gexpr_dist <- compute_dist(gexpr_umap, "Gene Expression") |> suppressWarnings()
+isoform_dist <- compute_dist(isoform_umap, "Isoforms") |> suppressWarnings()
 ciri_dist <- compute_dist(ciri_umap, "CIRI2") |> suppressWarnings()
 circ_dist <- compute_dist(circ_umap, "CIRCexplorer2") |> suppressWarnings()
 cfnd_dist <- compute_dist(cfnd_umap, "circRNA_finder") |> suppressWarnings()
 fcrc_dist <- compute_dist(fcrc_umap, "find_circ") |> suppressWarnings()
 
 # format dataframe for plotting
-toPlot <- rbind(ciri_dist, circ_dist, cfnd_dist, fcrc_dist)
-toPlot$label <- factor(toPlot$label, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+toPlot <- rbind(gexpr_dist, isoform_dist, ciri_dist, circ_dist, cfnd_dist, fcrc_dist)
+toPlot$label <- factor(toPlot$label, levels = c("Gene Expression", "Isoforms", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 
 # plot density plot
 png("../results/figures/figure5/umap_dist_density.png", width=150, height=100, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = euclidean_dist)) + geom_density(aes(fill = label), alpha = 0.4, size = 0.5) + 
         theme_classic() +  
-        scale_fill_manual(values = c("#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
+        scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
         labs(x = "Euclidean Distance of UMAP Points", y = "Density") +
         theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3),
             legend.key.size = unit(0.4, 'cm'))
@@ -310,6 +331,6 @@ png("../results/figures/figure5/umap_dist_boxplot.png", width=150, height=100, u
 ggplot(toPlot, aes(x = label, y = euclidean_dist)) + 
     geom_violin(aes(fill = label), alpha = 0.8) + geom_boxplot(width=0.1, alpha = 0.4) +
     theme_classic() + labs(x = "", fill = "", y = "Euclidean Distance of UMAP Points") +
-    scale_fill_manual(values = c("#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
+    scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
     theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.position = "none") 
 dev.off()
