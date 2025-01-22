@@ -182,28 +182,35 @@ circ_stability_random <- format_df(circ_stability_random, "CIRCexplorer2", "Rand
 cfnd_stability_random <- format_df(cfnd_stability_random, "circRNA_finder", "Random")
 fcrc_stability_random <- format_df(fcrc_stability_random, "find_circ", "Random")
 
+# load in gene expression and isoform stability
+load("../results/data/temp/gene_isoform_stability.RData")
+
+transcript_stability <- format_df(transcript_stability[,c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")], "Isoforms")
+gene_stability <- format_df(gene_stability[,c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")], "Gene Expression")
+gene_stability[is.na(gene_stability)] <- 0
 
 ############################################################
 # Figure 5: Plot stability index distribution 
 ############################################################
 
 # merge nonrandom results for plotting
-toPlot <- rbind(ciri_stability, circ_stability, 
+toPlot <- rbind(gene_stability, transcript_stability, 
+                ciri_stability, circ_stability, 
                 cfnd_stability, fcrc_stability)
-toPlot$label <- factor(toPlot$label, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+toPlot$label <- factor(toPlot$label, levels = c("Gene Expression", "Isoforms", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 
 png("../results/figures/figure5/stability_nonrandom_ge.png", width=300, height=150, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = label, y = Stability)) + 
     geom_violin(aes(fill = label), alpha = 0.8) + geom_boxplot(width=0.1, alpha = 0.3) +
     facet_grid(factor(PSet)~.) +
     theme_classic() + labs(x = "", fill = "", y = "Stability Index") +
-    scale_fill_manual(values = c("#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
+    scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
     theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.7, 'cm')) +
     geom_hline(yintercept = 0, linetype = "dotted")
 dev.off()
 
 
-# merge results for plotting
+# merge random results for plotting
 toPlot <- rbind(ciri_stability, circ_stability, cfnd_stability, fcrc_stability,
                 ciri_stability_random, circ_stability_random, cfnd_stability_random, fcrc_stability_random)
 toPlot <- melt(toPlot)
