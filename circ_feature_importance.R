@@ -192,11 +192,14 @@ fcrc_ccle_ft <- circToGene(fcrc_ccle_gr, fcrc_ccle_ft)
 # Save results
 ############################################################
 
-save(ciri_gcsi_ft, ciri_ccle_ft, ciri_gdsc_ft, 
-     circ_gcsi_ft, circ_ccle_ft, circ_gdsc_ft,
-     cfnd_gcsi_ft, cfnd_ccle_ft, cfnd_gdsc_ft, 
-     fcrc_gcsi_ft, fcrc_ccle_ft, fcrc_gdsc_ft,
-     file = "../results/data/circ_stability_features.RData")
+save(ciri_gcsi_ft, circ_gcsi_ft, cfnd_gcsi_ft, fcrc_gcsi_ft, 
+     file = "../results/data/circ_stability_gcsi_features.RData")
+
+save(ciri_ccle_ft, circ_ccle_ft, cfnd_ccle_ft, fcrc_ccle_ft,
+     file = "../results/data/circ_stability_ccle_features.RData")
+
+save(ciri_gdsc_ft, circ_gdsc_ft, cfnd_gdsc_ft, fcrc_gdsc_ft,
+     file = "../results/data/circ_stability_gdsc_features.RData")
 
 
 # Miscellaneous
