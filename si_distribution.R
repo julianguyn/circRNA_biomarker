@@ -15,21 +15,22 @@ suppressPackageStartupMessages({
 # load circRNA expression data
 path = "../data/processed_cellline/common_samples/" 
 
-ciri_gcsi <- fread(paste0(path, "CIRI2/ciri_gcsi_counts.tsv", data.table = F))
-ciri_gdsc <- fread(paste0(path, "CIRI2/ciri_gdsc_counts.tsv", data.table = F))
-ciri_ccle <- fread(paste0(path, "CIRI2/ciri_ccle_counts.tsv", data.table = F))
+ciri_gcsi <- fread(paste0(path, "CIRI2/ciri_gcsi_counts.tsv"), data.table = F)
+ciri_gdsc <- fread(paste0(path, "CIRI2/ciri_gdsc_counts.tsv"), data.table = F)
+ciri_ccle <- fread(paste0(path, "CIRI2/ciri_ccle_counts.tsv"), data.table = F)
 
-circ_gcsi <- fread(paste0(path, "CIRCexplorer2/circ_gcsi_counts.tsv", data.table = F))
-circ_gdsc <- fread(paste0(path, "CIRCexplorer2/circ_gdsc_counts.tsv", data.table = F))
-circ_ccle <- fread(paste0(path, "CIRCexplorer2/circ_ccle_counts.tsv", data.table = F))
+circ_gcsi <- fread(paste0(path, "CIRCexplorer2/circ_gcsi_counts.tsv"), data.table = F)
+circ_gdsc <- fread(paste0(path, "CIRCexplorer2/circ_gdsc_counts.tsv"), data.table = F)
+circ_ccle <- fread(paste0(path, "CIRCexplorer2/circ_ccle_counts.tsv"), data.table = F)
 
-cfnd_gcsi <- fread(paste0(path, "circRNA_finder/cfnd_gcsi_counts.tsv", data.table = F))
-cfnd_gdsc <- fread(paste0(path, "circRNA_finder/cfnd_gdsc_counts.tsv", data.table = F))
-cfnd_ccle <- fread(paste0(path, "circRNA_finder/cfnd_ccle_counts.tsv", data.table = F))
+cfnd_gcsi <- fread(paste0(path, "circRNA_finder/cfnd_gcsi_counts.tsv"), data.table = F)
+cfnd_gdsc <- fread(paste0(path, "circRNA_finder/cfnd_gdsc_counts.tsv"), data.table = F)
+cfnd_ccle <- fread(paste0(path, "circRNA_finder/cfnd_ccle_counts.tsv"), data.table = F)
 
-fcrc_gcsi <- fread(paste0(path, "find_circ/fcrc_gcsi_counts.tsv", data.table = F))
-fcrc_gdsc <- fread(paste0(path, "find_circ/fcrc_gdsc_counts.tsv", data.table = F))
-fcrc_ccle <- fread(paste0(path, "find_circ/fcrc_ccle_counts.tsv", data.table = F))
+fcrc_gcsi <- fread(paste0(path, "find_circ/fcrc_gcsi_counts.tsv"), data.table = F)
+fcrc_gdsc <- fread(paste0(path, "find_circ/fcrc_gdsc_counts.tsv"), data.table = F)
+fcrc_ccle <- fread(paste0(path, "find_circ/fcrc_ccle_counts.tsv"), data.table = F)
+
 
 
 ############################################################
