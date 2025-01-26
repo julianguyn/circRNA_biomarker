@@ -93,7 +93,9 @@ IDstoBED <- function(df) {
     coords <- str_split(circIDs, "\\.", simplify = T) |> as.data.frame() 
     colnames(coords) <- c("chr", "start", "end")
     coords <- coords[-grep("e", coords$start),]
-    coords <- coords[as.numeric(coords$end) >= as.numeric(coords$start) - 1, ]
+    coords <- coords[as.numeric(coords$end) >= as.numeric(coords$start) - 1, ] |>
+        suppressWarnings()
+    coords <-  coords[complete.cases(coords),]
     bed <- makeGRangesFromDataFrame(coords)
     mcols(bed)$circID <- paste(coords$chr, coords$start, coords$end, sep = ".")
     
