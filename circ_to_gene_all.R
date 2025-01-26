@@ -53,7 +53,7 @@ gcsi_gdsc <- intersect(ciri_gcsi_sub$sample,ciri_gdsc_sub$sample)   # 112 sample
 ccle_gdsc <- intersect(ciri_ccle_sub$sample,ciri_gdsc_sub$sample)   # 91 samples
 
 to_keep <- unique(c(gcsi_ccle, gcsi_gdsc, ccle_gdsc))               # 588 total
-
+save(to_keep, file = "../data/temp/all_intersect_cells.RData")
 
 ############################################################
 # Filter samples
