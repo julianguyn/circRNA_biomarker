@@ -42,6 +42,46 @@ fcrc_gcsi_sub <- fread(paste0(path, "find_circ/fcrc_gcsi_counts.tsv"), data.tabl
 fcrc_gdsc_sub <- fread(paste0(path, "find_circ/fcrc_gdsc_counts.tsv"), data.table = F)
 fcrc_ccle_sub <- fread(paste0(path, "find_circ/fcrc_ccle_counts.tsv"), data.table = F)
 
+
+############################################################
+# Identify cell lines to keep
+############################################################
+
+# find intersecting cell lines
+gcsi_ccle <- intersect(ciri_gcsi_sub$sample,ciri_ccle_sub$sample)   # 481 samples
+gcsi_gdsc <- intersect(ciri_gcsi_sub$sample,ciri_gdsc_sub$sample)   # 112 samples
+ccle_gdsc <- intersect(ciri_ccle_sub$sample,ciri_gdsc_sub$sample)   # 91 samples
+
+to_keep <- unique(c(gcsi_ccle, gcsi_gdsc, ccle_gdsc))               # 588 total
+
+
+############################################################
+# Filter samples
+############################################################
+
+# function to filter circ expressiond dataframes 
+filter_circ <- function(circ_counts) {
+    circ_counts <- circ_counts[circ_counts$sample %in% to_keep,]
+    return(circ_counts)
+}
+
+ciri_gcsi_sub <- filter_circ(ciri_gcsi_sub)
+ciri_gdsc_sub <- filter_circ(ciri_gdsc_sub)
+ciri_ccle_sub <- filter_circ(ciri_ccle_sub)
+
+circ_gcsi_sub <- filter_circ(circ_gcsi_sub)
+circ_gdsc_sub <- filter_circ(circ_gdsc_sub)
+circ_ccle_sub <- filter_circ(circ_ccle_sub)
+
+cfnd_gcsi_sub <- filter_circ(cfnd_gcsi_sub)
+cfnd_gdsc_sub <- filter_circ(cfnd_gdsc_sub)
+cfnd_ccle_sub <- filter_circ(cfnd_ccle_sub)
+
+fcrc_gcsi_sub <- filter_circ(fcrc_gcsi_sub)
+fcrc_gdsc_sub <- filter_circ(fcrc_gdsc_sub)
+fcrc_ccle_sub <- filter_circ(fcrc_ccle_sub)
+
+
 ############################################################
 # Create GRanges of circRNA genomic coordinates
 ############################################################
