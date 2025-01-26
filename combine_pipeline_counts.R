@@ -14,9 +14,9 @@ suppressPackageStartupMessages({
 # circ for circRNA counts, GE for circ mapped to GE
 
 if (analysis == "circ") {
-    path <- "../data/processed_cellline/common_samples/" 
-    out <- "circ"
-    df <- "../data/processed_cellline/merged_common_samples/"
+    path <- "../data/processed_cellline/all_samples/" 
+    out <- "all_circ"
+    df <- "../data/processed_cellline/merged_all_samples/"
 }
 if (analysis == "GE") {
     path <- "../data/processed_cellline/GE_common_samples/"
@@ -45,6 +45,36 @@ cfnd_ccle <- fread(paste0(path, "circRNA_finder/cfnd_ccle_counts.tsv"), data.tab
 fcrc_gcsi <- fread(paste0(path, "find_circ/fcrc_gcsi_counts.tsv"), data.table = F)
 fcrc_gdsc <- fread(paste0(path, "find_circ/fcrc_gdsc_counts.tsv"), data.table = F)
 fcrc_ccle <- fread(paste0(path, "find_circ/fcrc_ccle_counts.tsv"), data.table = F)
+
+
+############################################################
+# Filter samples
+############################################################
+
+# load in cells to keep
+load("../data/temp/all_intersect_cells.RData")
+
+# function to filter circ expressiond dataframes 
+filter_circ <- function(circ_counts) {
+    circ_counts <- circ_counts[circ_counts$sample %in% to_keep,]
+    return(circ_counts)
+}
+
+ciri_gcsi <- filter_circ(ciri_gcsi)
+ciri_gdsc <- filter_circ(ciri_gdsc)
+ciri_ccle <- filter_circ(ciri_ccle)
+
+circ_gcsi <- filter_circ(circ_gcsi)
+circ_gdsc <- filter_circ(circ_gdsc)
+circ_ccle <- filter_circ(circ_ccle)
+
+cfnd_gcsi <- filter_circ(cfnd_gcsi)
+cfnd_gdsc <- filter_circ(cfnd_gdsc)
+cfnd_ccle <- filter_circ(cfnd_ccle)
+
+fcrc_gcsi <- filter_circ(fcrc_gcsi)
+fcrc_gdsc <- filter_circ(fcrc_gdsc)
+fcrc_ccle <- filter_circ(fcrc_ccle)
 
 
 ############################################################
@@ -222,6 +252,6 @@ gdsc_df <- combine_pipelines(ciri_gdsc, circ_gdsc, cfnd_gdsc, fcrc_gdsc)
 # Save dataframes
 ############################################################
 
-write.table(gcsi_df, file = paste0(df, "gcsi_counts.tsv"), quote = F, sep = "\t", col.names = T, row.names = F)
-write.table(ccle_df, file = paste0(df, "ccle_counts.tsv"), quote = F, sep = "\t", col.names = T, row.names = F)
-write.table(gdsc_df, file = paste0(df, "gdsc_counts.tsv"), quote = F, sep = "\t", col.names = T, row.names = F)
+write.table(gcsi_df, file = paste0(df, "gcsi_counts.tsv"), quote = F, sep = "\t", col.names = T, row.names = T)
+write.table(ccle_df, file = paste0(df, "ccle_counts.tsv"), quote = F, sep = "\t", col.names = T, row.names = T)
+write.table(gdsc_df, file = paste0(df, "gdsc_counts.tsv"), quote = F, sep = "\t", col.names = T, row.names = T)
