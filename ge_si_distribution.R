@@ -163,12 +163,12 @@ save(ciri_stability_random, circ_stability_random, cfnd_stability_random, fcrc_s
 ############################################################
 
 # function to format stability dataframes
-format_df <- function(df, pset, label) {
+format_df <- function(df, label, random = "NonRandom") {
     colnames(df) <- c("gCSI/CCLE", "gCSI/GDSC2", "GDSC2/CCLE")
     toPlot <- melt(df)
     colnames(toPlot) <- c("PSet", "Stability")
-    toPlot$pset <- pset
     toPlot$label <- label
+    toPlot$random <- random
     return(toPlot)
 }
 
@@ -214,11 +214,11 @@ dev.off()
 toPlot <- rbind(ciri_stability, circ_stability, cfnd_stability, fcrc_stability,
                 ciri_stability_random, circ_stability_random, cfnd_stability_random, fcrc_stability_random)
 toPlot <- melt(toPlot)
-toPlot$pset <- factor(toPlot$pset, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+toPlot$label <- factor(toPlot$label, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 
 png("../results/figures/figure5/stability_random_ge.png", width=150, height=150, units='mm', res = 600, pointsize=80)
-ggplot(toPlot, aes(x = variable, y = value, fill = label)) + 
-    geom_boxplot() + facet_grid(pset~.) + theme_classic() + 
+ggplot(toPlot, aes(x = PSet, y = value, fill = random)) + 
+    geom_boxplot() + facet_grid(label~.) + theme_classic() + 
     labs(x = "", fill = "", y = "Stability Index") + scale_fill_manual(values = c("#839788", "gray")) +
     theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.7, 'cm')) +
     geom_hline(yintercept = 0, linetype = "dotted")
