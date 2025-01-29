@@ -227,7 +227,7 @@ colnames(gene_stability) <- c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_
 
 
 ############################################################
-# Compute median expression for transcripts
+# Compute median expression for isoform stability
 ############################################################
 
 # format matrices
@@ -235,20 +235,10 @@ gcsi_matrix <- as.matrix(expr_gcsi_i)
 ccle_matrix <- as.matrix(expr_ccle_i)  
 gdsc_matrix <- as.matrix(expr_gdsc_i)
 
-gcsi_matrix <- as.matrix(expr_gcsi_p)                                 
-ccle_matrix <- as.matrix(expr_ccle_p)  
-gdsc_matrix <- as.matrix(expr_gdsc_p)
-
-
-# compute median expression for each transcript across biological replicates for each dataset
+# compute median
 gcsi_median <- as.numeric(rowMedians(gcsi_matrix))                                 
 ccle_median <- as.numeric(rowMedians(ccle_matrix))                                  
-gdsc_median <- as.numeric(rowMedians(gdsc_matrix))        
-
-gcsi_median <- as.numeric(rowMedians(gcsi_matrix))                                 
-ccle_median <- as.numeric(rowMedians(ccle_matrix))                                  
-gdsc_median <- as.numeric(rowMedians(gdsc_matrix)) 
-
+gdsc_median <- as.numeric(rowMedians(gdsc_matrix))  
 
 # compile isoforms into one data frame                                 
 transcript_stability$transcript_id <- transcripts
@@ -259,7 +249,22 @@ transcript_stability$gdsc_median <- gdsc_median
 
 #remove transcripts that have median expression of 0 across all datasets
 transcript_stability <- transcript_stability[-which(transcript_stability$gcsi_median == 0 & transcript_stability$ccle_median == 0 & transcript_stability$gdsc_median == 0),]  
-           
+   
+
+############################################################
+# Compute median expression for gene exp stability
+############################################################
+
+# format matrices
+gcsi_matrix <- as.matrix(expr_gcsi_p)                                 
+ccle_matrix <- as.matrix(expr_ccle_p)  
+gdsc_matrix <- as.matrix(expr_gdsc_p)
+
+# compute median      
+gcsi_median <- as.numeric(rowMedians(gcsi_matrix))                                 
+ccle_median <- as.numeric(rowMedians(ccle_matrix))                                  
+gdsc_median <- as.numeric(rowMedians(gdsc_matrix)) 
+        
 # compile gene expression into one data frame                                 
 gene_stability$gene_id <- genes
 rownames(gene_stability) <- gene_stability$gene_id
