@@ -51,8 +51,31 @@ fcrc_ccle <- fread(paste0(path, "find_circ/fcrc_ccle_counts.tsv"), data.table = 
 # Filter samples
 ############################################################
 
-# load in cells to keep
+# load in cells to keep (gCSI and CCLE)
 load("../data/temp/all_intersect_cells.RData")
+
+# split samples
+#1:     1:49
+#2:     50:98
+#3:     99:147
+#4:     148:196
+#5:     197:245
+#6:     246:294
+#7:     295:343
+#8:     344:392
+#9:     393:441
+#10:    442:490
+#11:    491:539
+#12:    540:588
+
+# cells GDSC
+load("../data/temp/all_gdsc_cells.RData")
+
+# split samples
+#1:     1:38
+#2:     39:78
+#3:     79:117
+#4:     118:155
 
 # function to filter circ expressiond dataframes 
 filter_circ <- function(circ_counts) {
@@ -207,6 +230,7 @@ combine_pipelines <- function(ciri_df, circ_df, cfnd_df, fcrc_df) {
     for (i in seq_along(samples)) {
 
         sample <- samples[i]
+        print(sample)
         ciri_sample <- ciri_split[[sample]]
         circ_sample <- circ_split[[sample]]
         cfnd_sample <- cfnd_split[[sample]]
@@ -236,12 +260,13 @@ combine_pipelines <- function(ciri_df, circ_df, cfnd_df, fcrc_df) {
 }
 
 
-#keep = intersect(intersect(intersect(colnames(ciri_gcsi), colnames(circ_gcsi)),colnames(cfnd_gcsi)), colnames(fcrc_gcsi))
-#keep = keep[1:10]
-#ciri_df = ciri_gcsi[,colnames(ciri_gcsi) %in% keep]
-#circ_df = circ_gcsi[,colnames(circ_gcsi) %in% keep]
-#cfnd_df = cfnd_gcsi[,colnames(cfnd_gcsi) %in% keep]
-#fcrc_df = fcrc_gcsi[,colnames(fcrc_gcsi) %in% c(keep, "A1BG", "A1BG-AS1", "A1CF", "A2M")]
+
+keep = intersect(intersect(intersect(colnames(ciri_gdsc), colnames(circ_gdsc)),colnames(cfnd_gdsc)), colnames(fcrc_gdsc))
+keep = keep[1:10]
+ciri_df = ciri_gdsc[,colnames(ciri_gdsc) %in% keep]
+circ_df = circ_gdsc[,colnames(circ_gdsc) %in% keep]
+cfnd_df = cfnd_gdsc[,colnames(cfnd_gdsc) %in% keep]
+fcrc_df = fcrc_gdsc[,colnames(fcrc_gdsc) %in% c(keep, "A1BG", "A1BG-AS1", "A1CF", "A2M")]
 
 gcsi_df <- combine_pipelines(ciri_gcsi, circ_gcsi, cfnd_gcsi, fcrc_gcsi)
 ccle_df <- combine_pipelines(ciri_ccle, circ_ccle, cfnd_ccle, fcrc_ccle)
