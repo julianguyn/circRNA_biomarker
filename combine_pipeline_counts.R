@@ -229,12 +229,21 @@ combine_pipelines <- function(ciri_df, circ_df, cfnd_df, fcrc_df) {
 
     for (i in seq_along(samples)) {
 
+        print(i)
         sample <- samples[i]
-        print(sample)
         ciri_sample <- ciri_split[[sample]]
         circ_sample <- circ_split[[sample]]
         cfnd_sample <- cfnd_split[[sample]]
         fcrc_sample <- fcrc_split[[sample]]
+
+        # remove transcripts detected in only one pipeline
+        transcript_count <- c(colnames(ciri_sample), colnames(circ_sample), colnames(cfnd_sample), colnames(fcrc_sample)) |> table()
+        keep <- transcript_count[transcript_count > 1] |> names()
+
+        ciri_sample <- ciri_sample[,colnames(ciri_sample) %in% keep]
+        circ_sample <- circ_sample[,colnames(circ_sample) %in% keep]
+        cfnd_sample <- cfnd_sample[,colnames(cfnd_sample) %in% keep]
+        fcrc_sample <- fcrc_sample[,colnames(fcrc_sample) %in% keep]
 
         merged <- rbindlist(list(ciri_sample, circ_sample, cfnd_sample, fcrc_sample), fill = TRUE) |> as.data.frame()
         merged[is.na(merged)] <- 0
@@ -261,12 +270,12 @@ combine_pipelines <- function(ciri_df, circ_df, cfnd_df, fcrc_df) {
 
 
 
-keep = intersect(intersect(intersect(colnames(ciri_gdsc), colnames(circ_gdsc)),colnames(cfnd_gdsc)), colnames(fcrc_gdsc))
-keep = keep[1:10]
-ciri_df = ciri_gdsc[,colnames(ciri_gdsc) %in% keep]
-circ_df = circ_gdsc[,colnames(circ_gdsc) %in% keep]
-cfnd_df = cfnd_gdsc[,colnames(cfnd_gdsc) %in% keep]
-fcrc_df = fcrc_gdsc[,colnames(fcrc_gdsc) %in% c(keep, "A1BG", "A1BG-AS1", "A1CF", "A2M")]
+#keep = intersect(intersect(intersect(colnames(ciri_gdsc), colnames(circ_gdsc)),colnames(cfnd_gdsc)), colnames(fcrc_gdsc))
+#keep = keep[1:10]
+ciri_df = ciri_gdsc[,1:1000]
+circ_df = circ_gdsc[,1:1000]
+cfnd_df = cfnd_gdsc[,1:1000]
+fcrc_df = fcrc_gdsc[,1:1000]
 
 gcsi_df <- combine_pipelines(ciri_gcsi, circ_gcsi, cfnd_gcsi, fcrc_gcsi)
 ccle_df <- combine_pipelines(ciri_ccle, circ_ccle, cfnd_ccle, fcrc_ccle)
