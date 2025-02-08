@@ -12,13 +12,15 @@ suppressPackageStartupMessages({
 # analysis = c("circ", "GE")  
 # circ for circRNA counts, GE for circ mapped to GE
 
-if (analysis == "circ") {
-    path <- "../data/processed_cellline/merged_common_samples/"
-    out <- "circ"
+if (analysis == "circ") {                                               
+    path <- "../data/processed_cellline/merged_all_samples/"
+    thres = 15
+    dr_out <- "../results/data/bin_dr/circ_"
 }
-if (analysis == "GE") {
+if (analysis == "GE") {                                                 
     path <- "../data/processed_cellline/mergedGE_common_samples/"
-    out <- "GE"
+    thres = 10       
+    dr_out <- "../results/data/bin_dr/GE_"                               
 }
 
 
@@ -31,6 +33,16 @@ gcsi_df <- fread(paste0(path, "gcsi_counts.tsv"), data.table = F)
 ccle_df <- fread(paste0(path, "ccle_counts.tsv"), data.table = F)
 gdsc_df <- fread(paste0(path, "gdsc_counts.tsv"), data.table = F)
 
+# formating
+gcsi_df[is.na(gcsi_df)] <- 0
+ccle_df[is.na(ccle_df)] <- 0
+gdsc_df[is.na(gdsc_df)] <- 0
+
+rownames(gcsi_df) <- gcsi_df$V1
+rownames(ccle_df) <- ccle_df$V1
+rownames(gdsc_df) <- gdsc_df$V1
+
+gcsi_df$V1 <- ccle_df$V1 <- gdsc_df$V1 <- NULL
 
 ############################################################
 # Load in drug response data and subset
@@ -40,16 +52,20 @@ gdsc_df <- fread(paste0(path, "gdsc_counts.tsv"), data.table = F)
 load("../data/temp/sensitivity_data.RData")
 
 # drugs of interest
-drugs <- intersect(intersect(rownames(gcsi_sen), rownames(ctrp_sen)), rownames(gdsc_sen))
+gcsi_ctrp <- intersect(rownames(gcsi_sen), rownames(ctrp_sen))
+gcsi_gdsc <- intersect(rownames(gcsi_sen), rownames(gdsc_sen))
+ctrp_gdsc <- intersect(rownames(ctrp_sen), rownames(gdsc_sen))
+
+#drugs <- intersect(intersect(rownames(gcsi_sen), rownames(ctrp_sen)), rownames(gdsc_sen))
 # "Bortezomib", "Crizotinib", "Docetaxel", "Erlotinib", "Pictilisib", "Gemcitabine", "Lapatinib", "Entinostat", "Paclitaxel", "Sirolimus", "Vorinostat" 
 
 # common samples
 samples <- rownames(gcsi_df)
 
-# keep common samples and drugs of interest
-gcsi_sen <- gcsi_sen[rownames(gcsi_sen) %in% drugs, colnames(gcsi_sen) %in% samples]
-ctrp_sen <- ctrp_sen[rownames(ctrp_sen) %in% drugs, colnames(ctrp_sen) %in% samples]
-gdsc_sen <- gdsc_sen[rownames(gdsc_sen) %in% drugs, colnames(gdsc_sen) %in% samples]
+# keep drugs of interest
+gcsi_sen <- gcsi_sen[rownames(gcsi_sen) %in% c(gcsi_ctrp, gcsi_gdsc), ]
+ctrp_sen <- ctrp_sen[rownames(ctrp_sen) %in% c(gcsi_ctrp, ctrp_gdsc), ]
+gdsc_sen <- gdsc_sen[rownames(gdsc_sen) %in% c(gcsi_gdsc, ctrp_gdsc), ]
 
 
 ############################################################
@@ -57,7 +73,18 @@ gdsc_sen <- gdsc_sen[rownames(gdsc_sen) %in% drugs, colnames(gdsc_sen) %in% samp
 ############################################################
 
 # remove features with exp in less than threshold samples
-thres = 10
+dim(gcsi_df)        # 545 30443
+dim(ccle_df)        # 524 36684
+dim(gdsc_df)        # 141 5322
+
+# THRESHOLDS FOR circ:
+# thres = 10, gcsi_df: 480, ccle_df: 729, gdsc_df: 236
+# thres = 15, gcsi_df: 292, ccle_df: 454, gdsc_df: 153
+# thres = 20, gcsi_df: 215, ccle_df: 326, gdsc_df: 112
+
+dim(gcsi_df[,colnames(gcsi_df)[colSums(gcsi_df != 0) >= thres], drop = FALSE])
+dim(ccle_df[,colnames(ccle_df)[colSums(ccle_df != 0) >= thres], drop = FALSE])
+dim(gdsc_df[,colnames(gdsc_df)[colSums(gdsc_df != 0) >= thres], drop = FALSE])
 
 gcsi_df <- gcsi_df[,colnames(gcsi_df)[colSums(gcsi_df != 0) >= thres], drop = FALSE]
 ccle_df <- ccle_df[,colnames(ccle_df)[colSums(ccle_df != 0) >= thres], drop = FALSE]
@@ -100,9 +127,11 @@ binary_dr <- function(counts_df, median, drug_df) {
     
     # initiate row count
     row = 1
+    print(paste("Number of features:", length(features)))
 
     for (i in seq_along(features)) {
-
+        
+        print(i)
         feature <- features[i]
 
         # binarize transcript expression by median
@@ -119,15 +148,26 @@ binary_dr <- function(counts_df, median, drug_df) {
             high = drug_df[j,colnames(drug_df) %in% high_exp] |> as.numeric()
             low = drug_df[j,colnames(drug_df) %in% low_exp] |> as.numeric()
 
-            # wilcoxon rank sum test
-            res <- wilcox.test(high, low, alternative = "two.sided", exact = FALSE)
+            if (length(high) > 1 & length(low) > 1) {
 
-            # save results
-            combinations$W[row] <- res$statistic
-            combinations$pval[row] <- res$p.value
-            combinations$num_samples[row] <- nrow(subset)
-            combinations$feature[row] <- feature
-            combinations$drug[row] <- rownames(drug_df)[j]
+                # wilcoxon rank sum test
+                res <- wilcox.test(high, low, alternative = "two.sided", exact = FALSE)
+
+                # save results
+                combinations$W[row] <- res$statistic
+                combinations$pval[row] <- res$p.value
+                combinations$num_samples[row] <- nrow(subset)
+                combinations$feature[row] <- feature
+                combinations$drug[row] <- rownames(drug_df)[j]
+
+            } else {
+                # save results
+                combinations$W[row] <- NA
+                combinations$pval[row] <- NA
+                combinations$num_samples[row] <- nrow(subset)
+                combinations$feature[row] <- feature
+                combinations$drug[row] <- rownames(drug_df)[j]
+            }
 
             row <- row + 1
         }
@@ -144,6 +184,10 @@ gdsc_bin_dr <- binary_dr(gdsc_df, gdsc_median, gdsc_sen)
 ############################################################
 # Save drug response associations
 ############################################################
+
+save(gcsi_bin_dr, file = paste0(dr_out, "gcsi.RData"))
+save(ccle_bin_dr, file = paste0(dr_out, "ccle.RData"))
+save(gdsc_bin_dr, file = paste0(dr_out, "gdsc.RData"))
 
 
 ############################################################
