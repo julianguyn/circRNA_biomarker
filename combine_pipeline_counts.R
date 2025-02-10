@@ -52,30 +52,9 @@ fcrc_ccle <- fread(paste0(path, "find_circ/fcrc_ccle_counts.tsv"), data.table = 
 ############################################################
 
 # load in cells to keep (gCSI and CCLE)
-load("../data/temp/all_intersect_cells.RData")
-
-# split samples
-#1:     1:49
-#2:     50:98
-#3:     99:147
-#4:     148:196
-#5:     197:245
-#6:     246:294
-#7:     295:343
-#8:     344:392
-#9:     393:441
-#10:    442:490
-#11:    491:539
-#12:    540:588
-
+#load("../data/temp/all_intersect_cells.RData")
 # cells GDSC
-load("../data/temp/all_gdsc_cells.RData")
-
-# split samples
-#1:     1:38
-#2:     39:78
-#3:     79:117
-#4:     118:155
+#load("../data/temp/all_gdsc_cells.RData")
 
 # function to filter circ expressiond dataframes 
 filter_circ <- function(circ_counts) {
@@ -83,21 +62,21 @@ filter_circ <- function(circ_counts) {
     return(circ_counts)
 }
 
-ciri_gcsi <- filter_circ(ciri_gcsi)
-ciri_gdsc <- filter_circ(ciri_gdsc)
-ciri_ccle <- filter_circ(ciri_ccle)
+#ciri_gcsi <- filter_circ(ciri_gcsi)
+#ciri_gdsc <- filter_circ(ciri_gdsc)
+#ciri_ccle <- filter_circ(ciri_ccle)
 
-circ_gcsi <- filter_circ(circ_gcsi)
-circ_gdsc <- filter_circ(circ_gdsc)
-circ_ccle <- filter_circ(circ_ccle)
+#circ_gcsi <- filter_circ(circ_gcsi)
+#circ_gdsc <- filter_circ(circ_gdsc)
+#circ_ccle <- filter_circ(circ_ccle)
 
-cfnd_gcsi <- filter_circ(cfnd_gcsi)
-cfnd_gdsc <- filter_circ(cfnd_gdsc)
-cfnd_ccle <- filter_circ(cfnd_ccle)
+#cfnd_gcsi <- filter_circ(cfnd_gcsi)
+#cfnd_gdsc <- filter_circ(cfnd_gdsc)
+#cfnd_ccle <- filter_circ(cfnd_ccle)
 
-fcrc_gcsi <- filter_circ(fcrc_gcsi)
-fcrc_gdsc <- filter_circ(fcrc_gdsc)
-fcrc_ccle <- filter_circ(fcrc_ccle)
+#fcrc_gcsi <- filter_circ(fcrc_gcsi)
+#fcrc_gdsc <- filter_circ(fcrc_gdsc)
+#fcrc_ccle <- filter_circ(fcrc_ccle)
 
 
 ############################################################
