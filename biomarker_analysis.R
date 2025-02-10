@@ -59,9 +59,6 @@ ctrp_gdsc <- intersect(rownames(ctrp_sen), rownames(gdsc_sen))
 #drugs <- intersect(intersect(rownames(gcsi_sen), rownames(ctrp_sen)), rownames(gdsc_sen))
 # "Bortezomib", "Crizotinib", "Docetaxel", "Erlotinib", "Pictilisib", "Gemcitabine", "Lapatinib", "Entinostat", "Paclitaxel", "Sirolimus", "Vorinostat" 
 
-# common samples
-samples <- rownames(gcsi_df)
-
 # keep drugs of interest
 gcsi_sen <- gcsi_sen[rownames(gcsi_sen) %in% c(gcsi_ctrp, gcsi_gdsc), ]
 ctrp_sen <- ctrp_sen[rownames(ctrp_sen) %in% c(gcsi_ctrp, ctrp_gdsc), ]
@@ -73,14 +70,19 @@ gdsc_sen <- gdsc_sen[rownames(gdsc_sen) %in% c(gcsi_gdsc, ctrp_gdsc), ]
 ############################################################
 
 # remove features with exp in less than threshold samples
-dim(gcsi_df)        # 545 30443
-dim(ccle_df)        # 524 36684
-dim(gdsc_df)        # 141 5322
+dim(gcsi_df)        # 545 30443     # ALL samples:  38858
+dim(ccle_df)        # 524 36684                     62271
+dim(gdsc_df)        # 141 5322                      11105
 
-# THRESHOLDS FOR circ:
+# THRESHOLDS FOR circ (intersected samples - in at least 2 PSets):
 # thres = 10, gcsi_df: 480, ccle_df: 729, gdsc_df: 236
 # thres = 15, gcsi_df: 292, ccle_df: 454, gdsc_df: 153
 # thres = 20, gcsi_df: 215, ccle_df: 326, gdsc_df: 112
+
+# THRESHOLDS FOR circ (all samples):
+# thres = 10, gcsi_df: 656, ccle_df: , gdsc_df: 655 
+# thres = 15, gcsi_df: 392, ccle_df: 1025, gdsc_df: 459
+# thres = 20, gcsi_df: , ccle_df: , gdsc_df: 
 
 dim(gcsi_df[,colnames(gcsi_df)[colSums(gcsi_df != 0) >= thres], drop = FALSE])
 dim(ccle_df[,colnames(ccle_df)[colSums(ccle_df != 0) >= thres], drop = FALSE])
@@ -148,7 +150,9 @@ binary_dr <- function(counts_df, median, drug_df) {
             high = drug_df[j,colnames(drug_df) %in% high_exp] |> as.numeric()
             low = drug_df[j,colnames(drug_df) %in% low_exp] |> as.numeric()
 
-            if (length(high) > 1 & length(low) > 1) {
+
+
+            if (length(high[na.omit(high)]) > 1 & length(low[na.omit(low)]) > 1) {
 
                 # wilcoxon rank sum test
                 res <- wilcox.test(high, low, alternative = "two.sided", exact = FALSE)
@@ -173,6 +177,11 @@ binary_dr <- function(counts_df, median, drug_df) {
         }
     }
     combinations$FDR <- p.adjust(combinations$pval, method = "BH")
+
+    # format dataframe for plotting 
+    combinations <- combinations[order(combinations$W, decreasing = T),]
+    combinations$rank <- seq_len(nrow(combinations))
+    combinations$pair <- paste(combinations$Drug, combinations$Feature, sep = "_")
     return(combinations)
 }
 
@@ -190,6 +199,26 @@ save(ccle_bin_dr, file = paste0(dr_out, "ccle.RData"))
 save(gdsc_bin_dr, file = paste0(dr_out, "gdsc.RData"))
 
 
+
 ############################################################
 # Linear model controling for cancer type
 ############################################################
+
+
+############################################################
+# Waterfall plots for individual PSets
+############################################################
+
+
+ggplot(gcsi_bin_dr, aes(x = rank, y = W)) +
+    geom_col() + #scale_x_continuous(limits = c(-0.5, 0.5), labels = function(x) x + 0.5) +
+    scale_x_discrete(breaks = gcsi_bin_dr$rank, labels = gcsi_bin_dr$Drug) +
+    scale_fill_manual(values = pal) +
+    theme_classic() + geom_vline(xintercept = 0) + 
+    theme(legend.text = element_text(size = 13),
+          legend.title = element_text(size = 16),
+          axis.text.x = element_text(size = 13),  
+          axis.text.y = element_text(size = 13),
+          axis.title.x = element_text(size = 16),
+          axis.title.y = element_text(size = 16)) +
+    labs(y = "Drug", title = "", x = "Concordance Index (CI)", fill = "Signature") 
