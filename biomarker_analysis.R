@@ -42,7 +42,7 @@ rownames(gcsi_df) <- gcsi_df$V1
 rownames(ccle_df) <- ccle_df$V1
 rownames(gdsc_df) <- gdsc_df$V1
 
-gcsi_df$V1 <- ccle_df$V1 <- gdsc_df$V1 <- NULL
+gcsi_df$V1 <- ccle_df$V1 <- gdsc_df$V1 <- NULL      
 
 ############################################################
 # Load in drug response data and subset
