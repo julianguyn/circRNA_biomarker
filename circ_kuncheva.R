@@ -21,7 +21,7 @@ load("../results/data/temp/circ_stability.RData")       # ciri: 30, circ: 66, cf
 # specify quantiles
 quantiles <- c(0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35)
 
-quantiles <- c(0.15, 0.20, 0.25, 0.30, 0.35)
+#quantiles <- c(0.15, 0.20, 0.25, 0.30, 0.35)
 
 # function to compute kuncheva index across quantiles
 compute_kuncheva <- function(stability_df, id_label) {
@@ -110,10 +110,10 @@ plot_kuncheva <- function(melted_df, title) {
 
 # plot line graph
 png("../results/figures/figure8/kuncheva.png", width=250, height=200, units='mm', res = 600, pointsize=80)
-ggarrange(plot_kuncheva(ciri_kuncheva, "CIRI2"), 
-          plot_kuncheva(circ_kuncheva, "CIRCexplorer2"),
-          plot_kuncheva(cfnd_kuncheva, "circRNA_finder"),
-          plot_kuncheva(fcrc_kuncheva, "find_circ"),
+ggarrange(plot_kuncheva(ciri_kuncheva, "CIRI2"),                # max q: 0.2
+          plot_kuncheva(circ_kuncheva, "CIRCexplorer2"),        # max q: 0.1
+          plot_kuncheva(cfnd_kuncheva, "circRNA_finder"),       # max q: 0.15
+          plot_kuncheva(fcrc_kuncheva, "find_circ"),            # max q: 0.1
           ncol = 2, nrow = 2,
           common.legend = TRUE,
           legend = "right")
