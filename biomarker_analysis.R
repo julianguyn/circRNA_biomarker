@@ -103,15 +103,16 @@ gdsc_df[gdsc_df == 0] <- NA
 ############################################################
 
 # keep only samples with drug response
-gcsi_df <- gcsi_df[rownames(gcsi_df) %in% colnames(gcsi_sen),]
-ccle_df <- ccle_df[rownames(ccle_df) %in% colnames(ccle_sen),]
-gdsc_df <- gdsc_df[rownames(gdsc_df) %in% colnames(gdsc_sen),]
+gcsi_df <- gcsi_df[rownames(gcsi_df) %in% colnames(gcsi_sen),]      # 334 392
+ccle_df <- ccle_df[rownames(ccle_df) %in% colnames(ccle_sen),]      # 475 1025
+gdsc_df <- gdsc_df[rownames(gdsc_df) %in% colnames(gdsc_sen),]      # 314 459
 
 # compute median transcript expression
 gcsi_median <- apply(gcsi_df, 2, median, na.rm = TRUE)
 ccle_median <- apply(ccle_df, 2, median, na.rm = TRUE)
 gdsc_median <- apply(gdsc_df, 2, median, na.rm = TRUE)
 
+save(gcsi_df, ccle_df, gdsc_df, gcsi_median, ccle_median, gdsc_median, file = "../results/data/biomarker_analysis_circ.RData")
 
 ############################################################
 # Binarize transcript expression by median
@@ -150,9 +151,7 @@ binary_dr <- function(counts_df, median, drug_df) {
             high = drug_df[j,colnames(drug_df) %in% high_exp] |> as.numeric()
             low = drug_df[j,colnames(drug_df) %in% low_exp] |> as.numeric()
 
-
-
-            if (length(high[na.omit(high)]) > 1 & length(low[na.omit(low)]) > 1) {
+            if (length(high[!is.na(high)]) > 1 & length(low[!is.na(low)]) > 1) {
 
                 # wilcoxon rank sum test
                 res <- wilcox.test(high, low, alternative = "two.sided", exact = FALSE)
