@@ -210,6 +210,10 @@ cfnd_features <- rbind(cfnd_stability_gcsi_ccle, cfnd_stability_gcsi_gdsc, cfnd_
 fcrc_features <- rbind(fcrc_stability_gcsi_ccle, fcrc_stability_gcsi_gdsc, fcrc_stability_ggdsc_ccle)
 
 
+save(#gene_features, transcript_features,
+     ciri_features, circ_features, cfnd_features, fcrc_features,
+     file = "../results/data/temp/feature_influence.RData")
+
 ############################################################
 # Format results for plotting
 ############################################################
