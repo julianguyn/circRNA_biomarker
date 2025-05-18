@@ -346,6 +346,74 @@ dev.off()
 # Linear model controling for cancer type
 ############################################################
 
+runLM <- function(exp, sen) {
+
+    features = colnames(exp)
+
+    # create data frame to hold results
+    combinations <- expand.grid(Drug = rownames(sen), Feature = features)
+    combinations$num_samples <- combinations$r2 <- combinations$se <- combinations$pval <-  combinations$estimate <- NA
+    combinations$drug <- combinations$feature <- NA
+
+    # initiate row count
+    row = 1
+    print(paste("Number of features:", length(features)))
+
+    # loop through each feature
+    for (i in seq_along(features)) {
+        
+        # extract feature vector
+        feature <- features[i]
+        exp_vector <- exp[,i,drop=F] 
+        exp_vector <- exp_vector[complete.cases(exp_vector),,drop=F]
+
+        # loop through each drug
+        for (j in seq_along(rownames(sen))) {
+
+            # get common cell lines
+            common_ccls <- intersect(rownames(exp_vector), colnames(sen))
+
+            # extract drug sen vector and match ccls
+            drug_vector <- sen[j,colnames(sen) %in% common_ccls]
+            exp_vector <- exp_vector[match(colnames(drug_vector), rownames(exp_vector)),,drop=F]
+            
+            # run linear regression
+            circ_exp <- exp_vector[,1]
+            res <- summary(lm(as.numeric(drug_vector) ~ circ_exp))
+
+            # save results
+            combinations$estimate[row] <- as.numeric(res$coefficients["circ_exp","Estimate"])
+            combinations$pval[row] <- as.numeric(res$coefficients["circ_exp","Pr(>|t|)"])
+            combinations$se[row] <- as.numeric(res$coefficients["circ_exp","Std. Error"])
+            combinations$r2[row] <- res$'r.squared'
+            combinations$num_samples[row] <- length(common_ccls)
+            combinations$feature[row] <- feature
+            combinations$drug[row] <- rownames(drug_vector)
+
+            row <- row + 1
+        }
+    }
+    combinations$FDR <- p.adjust(combinations$pval, method = "BH")
+
+    # format dataframe for plotting 
+    combinations <- combinations[order(combinations$estimate, decreasing = T),]
+    combinations$rank <- seq_len(nrow(combinations))
+    combinations$pair <- paste(combinations$Drug, combinations$Feature, sep = "_")
+    return(combinations)
+}
+
+gcsi_lm_dr <- runLM(gcsi_df, gcsi_sen)
+ccle_lm_dr <- runLM(ccle_df, ccle_sen)
+gdsc_lm_dr <- runLM(gdsc_df, gdsc_sen)
+
+
+############################################################
+# Save drug response associations
+############################################################
+
+save(gcsi_lm_dr, file = paste0(dr_out, "gcsi_lm.RData"))
+save(ccle_lm_dr, file = paste0(dr_out, "ccle_lm.RData"))
+save(gdsc_lm_dr, file = paste0(dr_out, "gdsc_lm.RData"))
 
 ############################################################
 # Waterfall plots for individual PSets
