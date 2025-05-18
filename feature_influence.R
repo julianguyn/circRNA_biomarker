@@ -64,7 +64,7 @@ fcrc_k <- 0.1
 # function to split stability dataframe for each dataset pair
 stability_pair <- function(stability, pair, kuncheva) {
 
-  n <- nrows(stability)
+  n <- nrow(stability)
   
   if (pair == "gcsi_ccle") {
     stability <- stability[,c('gdsc_median','gc','n_exon','length','gcsi_ccle_spearman')]
@@ -101,19 +101,19 @@ transcript_stability_gcsi_ccle <- stability_pair(transcript_stability, "gcsi_ccl
 transcript_stability_gcsi_gdsc <- stability_pair(transcript_stability, "gcsi_gdsc", isof_k)
 transcript_stability_gdsc_ccle <- stability_pair(transcript_stability, "gdsc_ccle", isof_k)
 
-ciri_stability_gcsi_ccle <- stability_pair(ciri_stability, "gcsi_ccle", ciri_k)
+ciri_stability_gcsi_ccle <- stability_pair(ciri_stability, "gcsi_ccle", ciri_k) #12
 ciri_stability_gcsi_gdsc <- stability_pair(ciri_stability, "gcsi_gdsc", ciri_k)
 ciri_stability_gdsc_ccle <- stability_pair(ciri_stability, "gdsc_ccle", ciri_k)
 
-circ_stability_gcsi_ccle <- stability_pair(circ_stability, "gcsi_ccle", circ_k)
+circ_stability_gcsi_ccle <- stability_pair(circ_stability, "gcsi_ccle", circ_k) #12
 circ_stability_gcsi_gdsc <- stability_pair(circ_stability, "gcsi_gdsc", circ_k)
 circ_stability_gdsc_ccle <- stability_pair(circ_stability, "gdsc_ccle", circ_k)
 
-cfnd_stability_gcsi_ccle <- stability_pair(cfnd_stability, "gcsi_ccle", cfnd_k)
+cfnd_stability_gcsi_ccle <- stability_pair(cfnd_stability, "gcsi_ccle", cfnd_k) #24
 cfnd_stability_gcsi_gdsc <- stability_pair(cfnd_stability, "gcsi_gdsc", cfnd_k)
 cfnd_stability_gdsc_ccle <- stability_pair(cfnd_stability, "gdsc_ccle", cfnd_k)
 
-fcrc_stability_gcsi_ccle <- stability_pair(fcrc_stability, "gcsi_ccle", fcrc_k)
+fcrc_stability_gcsi_ccle <- stability_pair(fcrc_stability, "gcsi_ccle", fcrc_k) #100
 fcrc_stability_gcsi_gdsc <- stability_pair(fcrc_stability, "gcsi_gdsc", fcrc_k)
 fcrc_stability_gdsc_ccle <- stability_pair(fcrc_stability, "gdsc_ccle", fcrc_k)
 
@@ -212,7 +212,7 @@ fcrc_features <- rbind(fcrc_stability_gcsi_ccle, fcrc_stability_gcsi_gdsc, fcrc_
 
 save(#gene_features, transcript_features,
      ciri_features, circ_features, cfnd_features, fcrc_features,
-     file = "../results/data/temp/feature_influence.RData")
+     file = "../results/data/temp/circ_feature_influence.RData")
 
 ############################################################
 # Format results for plotting
