@@ -19,11 +19,13 @@ if (analysis == "circ") {
     path <- "../data/processed_cellline/merged_all_samples/"
     thres = 15
     dr_out <- "../results/data/bin_dr/circ_"
+    lm_out <- "../results/data/lm_dr/circ_"
 }
 if (analysis == "GE") {                                                 
     path <- "../data/processed_cellline/mergedGE_common_samples/"
     thres = 10       
-    dr_out <- "../results/data/bin_dr/GE_"                               
+    dr_out <- "../results/data/bin_dr/GE_"    
+    lm_out <- "../results/data/lm_dr/GE_"                           
 }
 
 
@@ -362,6 +364,7 @@ runLM <- function(exp, sen) {
     # loop through each feature
     for (i in seq_along(features)) {
         
+        print(i)
         # extract feature vector
         feature <- features[i]
         exp_vector <- exp[,i,drop=F] 
@@ -374,21 +377,37 @@ runLM <- function(exp, sen) {
             common_ccls <- intersect(rownames(exp_vector), colnames(sen))
 
             # extract drug sen vector and match ccls
-            drug_vector <- sen[j,colnames(sen) %in% common_ccls]
-            exp_vector <- exp_vector[match(colnames(drug_vector), rownames(exp_vector)),,drop=F]
-            
-            # run linear regression
-            circ_exp <- exp_vector[,1]
-            res <- summary(lm(as.numeric(drug_vector) ~ circ_exp))
+            drug_vector <- sen[j,colnames(sen) %in% common_ccls] |> t() |> as.data.frame()
+            drug_vector <- drug_vector[complete.cases(drug_vector),,drop=F]
 
-            # save results
-            combinations$estimate[row] <- as.numeric(res$coefficients["circ_exp","Estimate"])
-            combinations$pval[row] <- as.numeric(res$coefficients["circ_exp","Pr(>|t|)"])
-            combinations$se[row] <- as.numeric(res$coefficients["circ_exp","Std. Error"])
-            combinations$r2[row] <- res$'r.squared'
-            combinations$num_samples[row] <- length(common_ccls)
-            combinations$feature[row] <- feature
-            combinations$drug[row] <- rownames(drug_vector)
+            if (nrow(drug_vector) < 2) {
+
+                combinations$estimate[row] <- NA
+                combinations$pval[row] <- NA
+                combinations$se[row] <- NA
+                combinations$r2[row] <- NA
+                combinations$num_samples[row] <- 0
+                combinations$feature[row] <- feature
+                combinations$drug[row] <- colnames(drug_vector)
+
+            } else {
+                exp_vector_subset <- exp_vector[match(rownames(drug_vector), rownames(exp_vector)),,drop=F]
+            
+                # run linear regression
+                circ_exp <- exp_vector_subset[,1]
+                drug_vec <- drug_vector[,1]
+                
+                res <- summary(lm(drug_vec ~ circ_exp))
+
+                # save results
+                combinations$estimate[row] <- as.numeric(res$coefficients["circ_exp","Estimate"])
+                combinations$pval[row] <- as.numeric(res$coefficients["circ_exp","Pr(>|t|)"])
+                combinations$se[row] <- as.numeric(res$coefficients["circ_exp","Std. Error"])
+                combinations$r2[row] <- res$'r.squared'
+                combinations$num_samples[row] <- length(common_ccls)
+                combinations$feature[row] <- feature
+                combinations$drug[row] <- colnames(drug_vector)
+            }
 
             row <- row + 1
         }
@@ -411,9 +430,9 @@ gdsc_lm_dr <- runLM(gdsc_df, gdsc_sen)
 # Save drug response associations
 ############################################################
 
-save(gcsi_lm_dr, file = paste0(dr_out, "gcsi_lm.RData"))
-save(ccle_lm_dr, file = paste0(dr_out, "ccle_lm.RData"))
-save(gdsc_lm_dr, file = paste0(dr_out, "gdsc_lm.RData"))
+save(gcsi_lm_dr, file = paste0(lm_out, "gcsi_lm.RData"))
+save(ccle_lm_dr, file = paste0(lm_out, "ccle_lm.RData"))
+save(gdsc_lm_dr, file = paste0(lm_out, "gdsc_lm.RData"))
 
 ############################################################
 # Waterfall plots for individual PSets
