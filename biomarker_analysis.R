@@ -413,6 +413,7 @@ runLM <- function(exp, sen) {
         }
     }
     combinations$FDR <- p.adjust(combinations$pval, method = "BH")
+    combinations <- combinations[!is.na(combinations$pval),]
 
     # format dataframe for plotting 
     combinations <- combinations[order(combinations$estimate, decreasing = T),]
@@ -433,6 +434,54 @@ gdsc_lm_dr <- runLM(gdsc_df, gdsc_sen)
 save(gcsi_lm_dr, file = paste0(lm_out, "gcsi_lm.RData"))
 save(ccle_lm_dr, file = paste0(lm_out, "ccle_lm.RData"))
 save(gdsc_lm_dr, file = paste0(lm_out, "gdsc_lm.RData"))
+
+
+############################################################
+# Quantify (TO REMOVE)
+############################################################
+
+# number of biomarker associations
+# gCSI: 5488
+# CCLE: 24600
+# GDSC: 33507
+
+# number of biomarker associations with pval < 0.05
+# gCSI: 200
+# CCLE: 755
+# GDSC: 1960
+
+# number of biomarker associations with FDR < 0.05
+# gCSI: 0
+# CCLE: 0
+# GDSC: 9
+
+
+############################################################
+# Subset for significant associations
+############################################################
+
+# function to subset for significant associations
+subset_dr <- function(dr, type = "pval") {
+
+    if (type == "pval") {
+        dr <- dr[which(dr$pval < 0.05),] 
+        return(dr)
+    } else {
+        dr <- dr[which(dr$FDR < 0.05),] 
+        return(dr)
+    }
+}
+
+gcsi_pval <- subset_dr(gcsi_bin_dr)
+gdsc_pval <- subset_dr(gdsc_bin_dr)
+ccle_pval <- subset_dr(ccle_bin_dr)
+
+gcsi_fdr <- subset_dr(gcsi_bin_dr, type = "fdr")
+gdsc_fdr <- subset_dr(gdsc_bin_dr, type = "fdr")
+ccle_fdr <- subset_dr(ccle_bin_dr, type = "fdr")
+
+
+
 
 ############################################################
 # Waterfall plots for individual PSets
