@@ -204,147 +204,6 @@ save(gdsc_bin_dr, file = paste0(dr_out, "gdsc.RData"))
 
 
 ############################################################
-# Quantify (TO REMOVE)
-############################################################
-
-load("circ_gdsc.RData")
-load("circ_ccle.RData")
-load("circ_gcsi.RData")
-
-# number of biomarker associations
-# gCSI: 5488
-# CCLE: 24600
-# GDSC: 33507
-
-# number of biomarker associations with pval < 0.05
-# gCSI: 200
-# CCLE: 755
-# GDSC: 1960
-
-# number of biomarker associations with FDR < 0.05
-# gCSI: 0
-# CCLE: 0
-# GDSC: 9
-
-
-############################################################
-# Subset for significant associations
-############################################################
-
-# function to subset for significant associations
-subset_dr <- function(dr, type = "pval") {
-
-    if (type == "pval") {
-        dr <- dr[which(dr$pval < 0.05),] 
-        return(dr)
-    } else {
-        dr <- dr[which(dr$FDR < 0.05),] 
-        return(dr)
-    }
-}
-
-gcsi_pval <- subset_dr(gcsi_bin_dr)
-gdsc_pval <- subset_dr(gdsc_bin_dr)
-ccle_pval <- subset_dr(ccle_bin_dr)
-
-gcsi_fdr <- subset_dr(gcsi_bin_dr, type = "fdr")
-gdsc_fdr <- subset_dr(gdsc_bin_dr, type = "fdr")
-ccle_fdr <- subset_dr(ccle_bin_dr, type = "fdr")
-
-
-############################################################
-# Waterfall plot of significant biomarkers
-############################################################
-
-plot_waterfall <- function(dr, scale, title) {
-
-    dr <- dr[order(dr$rank),]
-    dr$rank <- 1:nrow(dr)
-
-    if (scale == "raw") {
-        p <- ggplot(dr, aes(x = rank, y = W)) + geom_col(fill = "#899DA4") + 
-        theme_classic() + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
-        labs(y = "Wilcoxon Rank Sum Test Statistic", x = "Biomarker Association", title = title) 
-    }
-    if (scale == "log2") {
-        p <- ggplot(dr, aes(x = rank, y = log2(W))) + geom_col(fill = "#899DA4") + 
-        theme_classic() + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
-        labs(y = "Wilcoxon Rank Sum Test Statistic", x = "Biomarker Association", title = title) 
-    }
-    return(p)
-}
-
-png("../results/figures/figure6/waterfall_gcsi_pval.png", width = 6, height = 4, res = 600, units = "in")
-plot_waterfall(gcsi_pval, scale = "raw", title = "gCSI P-Val Significant Associations")
-dev.off()
-
-png("../results/figures/figure6/", width = 6, height = 4, res = 600, units = "in")
-plot_waterfall(ccle_pval, scale = "raw", title = "CCLE P-Val Significant Associations")
-dev.off()
-
-png("../results/figures/figure6/waterfall_gdsc_pval.png", width = 6, height = 4, res = 600, units = "in")
-plot_waterfall(gdsc_pval, scale = "raw", title = "GDSC P-Val Significant Associations")
-dev.off()
-
-
-############################################################
-# Upset plot of overlapping biomarkers
-############################################################
-
-# function to create upset plot
-plot_upset <- function(comb_mat, set_order) {
-    p <- UpSet(comb_mat, set_order = set_order,
-        top_annotation = upset_top_annotation(comb_mat, add_numbers = TRUE),
-        comb_order = order(-comb_size(comb_mat)))
-    return(p)
-}
-
-# create list object of transcripts for upset plot
-toPlot <- make_comb_mat(list(
-            gCSI = gcsi_pval$pair,
-            CCLE = ccle_pval$pair,
-            GDSC = gdsc_pval$pair))
-
-# plot upset plots
-png("../results/figures/figure6/bin_dr_upset.png", width = 6, height = 4, res = 600, units = "in")
-plot_upset(toPlot, set_order = c("gCSI", "CCLE", "GDSC"))
-dev.off()
-
-
-############################################################
-# Wilcoxon results of overlapping biomarkers
-############################################################
-
-# identify p-value significant biomarkers in >1 PSet
-common_biomarker <- c(intersect(gcsi_pval$pair, gdsc_pval$pair),
-                      intersect(ccle_pval$pair, gdsc_pval$pair),
-                      intersect(gcsi_pval$pair, ccle_pval$pair))
-
-# save results from individual pset associations
-gcsi_common <- gcsi_pval[gcsi_pval$pair %in% common_biomarker,]  
-ccle_common <- ccle_pval[ccle_pval$pair %in% common_biomarker,]    
-gdsc_common <- gdsc_pval[gdsc_pval$pair %in% common_biomarker,]    
-
-# add pset labels
-gcsi_common$PSet <- "gCSI"
-ccle_common$PSet <- "CCLE"
-gdsc_common$PSet <- "GDSC"
-
-# create dataframe for plotting
-toPlot <- rbind(gcsi_common, ccle_common, gdsc_common)
-toPlot$pair <- gsub("_", "\n", toPlot$pair)
-
-# plot common biomarkers
-png("../results/figures/figure6/common_pval_biomarkers.png", width = 17, height = 5, res = 600, units = "in")
-ggplot(toPlot, aes(x = PSet, y = W, fill = pval)) + geom_bar(stat="identity", color = "black") +
-    facet_nested(~ factor(pair), scales = "free_x") +
-    labs(fill = "P-Value", y = "Wilcoxon Rank Sum Test Statistic", x = "PSet") + 
-    theme_classic() +
-    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5), axis.text.x = element_text(angle = 90, hjust = 1))
-dev.off()
-
-
-############################################################
 # Linear model controling for cancer type
 ############################################################
 
@@ -440,6 +299,10 @@ save(gdsc_lm_dr, file = paste0(lm_out, "gdsc_lm.RData"))
 # Quantify (TO REMOVE)
 ############################################################
 
+load(paste0(dr_out, "gcsi.RData"))
+load(paste0(dr_out, "ccle.RData"))
+load(paste0(dr_out, "gdsc.RData"))
+
 # number of biomarker associations
 # gCSI: 5488
 # CCLE: 24600
@@ -454,6 +317,25 @@ save(gdsc_lm_dr, file = paste0(lm_out, "gdsc_lm.RData"))
 # gCSI: 0
 # CCLE: 0
 # GDSC: 9
+
+load(paste0(lm_out, "gcsi.RData"))
+load(paste0(lm_out, "ccle.RData"))
+load(paste0(lm_out, "gdsc.RData"))
+
+# number of biomarker associations
+# gCSI: 5488
+# CCLE: 24476
+# GDSC: 30040
+
+# number of biomarker associations with pval < 0.05
+# gCSI: 317
+# CCLE: 1173
+# GDSC: 2221
+
+# number of biomarker associations with FDR < 0.05
+# gCSI: 0
+# CCLE: 7
+# GDSC: 68
 
 
 ############################################################
@@ -472,6 +354,7 @@ subset_dr <- function(dr, type = "pval") {
     }
 }
 
+# subset binarized drug response
 gcsi_pval <- subset_dr(gcsi_bin_dr)
 gdsc_pval <- subset_dr(gdsc_bin_dr)
 ccle_pval <- subset_dr(ccle_bin_dr)
@@ -480,23 +363,108 @@ gcsi_fdr <- subset_dr(gcsi_bin_dr, type = "fdr")
 gdsc_fdr <- subset_dr(gdsc_bin_dr, type = "fdr")
 ccle_fdr <- subset_dr(ccle_bin_dr, type = "fdr")
 
+# subset lm drug response
+gcsi_pval <- subset_dr(gcsi_lm_dr)
+gdsc_pval <- subset_dr(gdsc_lm_dr)
+ccle_pval <- subset_dr(ccle_lm_dr)
+
+gcsi_fdr <- subset_dr(gcsi_lm_dr, type = "fdr")
+gdsc_fdr <- subset_dr(gdsc_lm_dr, type = "fdr")
+ccle_fdr <- subset_dr(ccle_lm_dr, type = "fdr")
 
 
 
 ############################################################
-# Waterfall plots for individual PSets
+# Waterfall plot of significant biomarkers
 ############################################################
 
+plot_waterfall <- function(dr, scale, title) {
 
-ggplot(gcsi_bin_dr, aes(x = rank, y = W)) +
-    geom_col() + #scale_x_continuous(limits = c(-0.5, 0.5), labels = function(x) x + 0.5) +
-    scale_x_discrete(breaks = gcsi_bin_dr$rank, labels = gcsi_bin_dr$Drug) +
-    scale_fill_manual(values = pal) +
-    theme_classic() + geom_vline(xintercept = 0) + 
-    theme(legend.text = element_text(size = 13),
-          legend.title = element_text(size = 16),
-          axis.text.x = element_text(size = 13),  
-          axis.text.y = element_text(size = 13),
-          axis.title.x = element_text(size = 16),
-          axis.title.y = element_text(size = 16)) +
-    labs(y = "Drug", title = "", x = "Concordance Index (CI)", fill = "Signature") 
+    dr <- dr[order(dr$rank),]
+    dr$rank <- 1:nrow(dr)
+
+    if (scale == "raw") {
+        p <- ggplot(dr, aes(x = rank, y = W)) + geom_col(fill = "#899DA4") + 
+        theme_classic() + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+        labs(y = "Wilcoxon Rank Sum Test Statistic", x = "Biomarker Association", title = title) 
+    }
+    if (scale == "log2") {
+        p <- ggplot(dr, aes(x = rank, y = log2(W))) + geom_col(fill = "#899DA4") + 
+        theme_classic() + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+        labs(y = "Wilcoxon Rank Sum Test Statistic", x = "Biomarker Association", title = title) 
+    }
+    return(p)
+}
+
+png("../results/figures/figure6/waterfall_gcsi_pval.png", width = 6, height = 4, res = 600, units = "in")
+plot_waterfall(gcsi_pval, scale = "raw", title = "gCSI P-Val Significant Associations")
+dev.off()
+
+png("../results/figures/figure6/", width = 6, height = 4, res = 600, units = "in")
+plot_waterfall(ccle_pval, scale = "raw", title = "CCLE P-Val Significant Associations")
+dev.off()
+
+png("../results/figures/figure6/waterfall_gdsc_pval.png", width = 6, height = 4, res = 600, units = "in")
+plot_waterfall(gdsc_pval, scale = "raw", title = "GDSC P-Val Significant Associations")
+dev.off()
+
+
+############################################################
+# Upset plot of overlapping biomarkers
+############################################################
+
+# function to create upset plot
+plot_upset <- function(comb_mat, set_order) {
+    p <- UpSet(comb_mat, set_order = set_order,
+        top_annotation = upset_top_annotation(comb_mat, add_numbers = TRUE),
+        comb_order = order(-comb_size(comb_mat)))
+    return(p)
+}
+
+# create list object of transcripts for upset plot
+toPlot <- make_comb_mat(list(
+            gCSI = gcsi_pval$pair,
+            CCLE = ccle_pval$pair,
+            GDSC = gdsc_pval$pair))
+
+# plot upset plots
+png("../results/figures/figure6/bin_dr_upset.png", width = 6, height = 4, res = 600, units = "in")
+plot_upset(toPlot, set_order = c("gCSI", "CCLE", "GDSC"))
+dev.off()
+
+
+############################################################
+# Wilcoxon results of overlapping biomarkers
+############################################################
+
+# identify p-value significant biomarkers in >1 PSet
+common_biomarker <- c(intersect(gcsi_pval$pair, gdsc_pval$pair),
+                      intersect(ccle_pval$pair, gdsc_pval$pair),
+                      intersect(gcsi_pval$pair, ccle_pval$pair))
+
+# save results from individual pset associations
+gcsi_common <- gcsi_pval[gcsi_pval$pair %in% common_biomarker,]  
+ccle_common <- ccle_pval[ccle_pval$pair %in% common_biomarker,]    
+gdsc_common <- gdsc_pval[gdsc_pval$pair %in% common_biomarker,]    
+
+# add pset labels
+gcsi_common$PSet <- "gCSI"
+ccle_common$PSet <- "CCLE"
+gdsc_common$PSet <- "GDSC"
+
+# create dataframe for plotting
+toPlot <- rbind(gcsi_common, ccle_common, gdsc_common)
+toPlot$pair <- gsub("_", "\n", toPlot$pair)
+
+# plot common biomarkers
+png("../results/figures/figure6/common_pval_biomarkers.png", width = 17, height = 5, res = 600, units = "in")
+ggplot(toPlot, aes(x = PSet, y = W, fill = pval)) + geom_bar(stat="identity", color = "black") +
+    facet_nested(~ factor(pair), scales = "free_x") +
+    labs(fill = "P-Value", y = "Wilcoxon Rank Sum Test Statistic", x = "PSet") + 
+    theme_classic() +
+    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5), axis.text.x = element_text(angle = 90, hjust = 1))
+dev.off()
+
+
+
+
