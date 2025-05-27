@@ -5,6 +5,7 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(ComplexHeatmap)
     library(ggh4x)
+    library(ggVennDiagram)
 })
 
 
@@ -555,3 +556,19 @@ dev.off()
 ############################################################
 # Compare Binarized and Linear Regression Results
 ############################################################
+
+# function to plot venn diagram of overlaps
+plot_venn <- function(bin, lm, pset) {
+
+    # create list object of transcripts for venn diagram
+    toPlot <- list(B = bin$pair, L = lm$pair)
+
+    # plot venn
+    png(paste0("../results/figures/figure9/venndiagram_", pset, ".png"), width=15, height=15, units='in', res = 600, pointsize=80)
+    print({ggVennDiagram(toPlot, label_alpha = 0) + scale_fill_gradient(low="#CAE5FF",high = "#6F8AB7")})
+    dev.off()
+}
+
+plot_venn(gcsi_pval_b, gcsi_pval_l, "gCSI")
+plot_venn(ccle_pval_b, ccle_pval_l, "CCLE")
+plot_venn(gdsc_pval_b, gdsc_pval_l, "GDSC")
