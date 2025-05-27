@@ -496,3 +496,62 @@ dev.off()
 # Stats of P-value Significant Biomarkers in other PSets
 ############################################################
 
+# function to create dataframe of p-value significant biomarkers
+get_biomarkers <- function(gcsi_pval, ccle_pval, gdsc_pval, gcsi_all, ccle_all, gdsc_all) {
+
+    # add pset labels
+    gcsi_all$PSet <- "gCSI"
+    ccle_all$PSet <- "CCLE"
+    gdsc_all$PSet <- "GDSC"
+
+    # keep only top 10 associations from each P-Set
+    if (colnames(gcsi_pval)[3] == "W") {
+        gcsi_pval <- gcsi_pval[order(gcsi_pval$W, decreasing = T),][1:10,]
+        ccle_pval <- ccle_pval[order(ccle_pval$W, decreasing = T),][1:10,]
+        gdsc_pval <- gdsc_pval[order(gdsc_pval$W, decreasing = T),][1:10,]
+    } else {
+        gcsi_pval <- gcsi_pval[order(gcsi_pval$estimate, decreasing = T),][1:10,]
+        ccle_pval <- ccle_pval[order(ccle_pval$estimate, decreasing = T),][1:10,]
+        gdsc_pval <- gdsc_pval[order(gdsc_pval$estimate, decreasing = T),][1:10,]
+    }
+
+    pval_biomarkers <- unique(c(gcsi_pval$pair, ccle_pval$pair, gdsc_pval$pair))
+
+    # create dataframe of selected 30 associations
+    toPlot <- rbind(gcsi_all[gcsi_all$pair %in% pval_biomarkers,],
+                    ccle_all[ccle_all$pair %in% pval_biomarkers,],
+                    gdsc_all[gdsc_all$pair %in% pval_biomarkers,])
+
+    # keep order of circRNAs
+    toPlot$pair <- factor(toPlot$pair, levels = rev(pval_biomarkers))
+    toPlot$PSet <- factor(toPlot$PSet, levels = c("gCSI", "CCLE", "GDSC"))
+
+    return(toPlot)
+}
+
+toPlot_bin <- get_biomarkers(gcsi_pval_b, ccle_pval_b, gdsc_pval_b, gcsi_bin_dr, ccle_bin_dr, gdsc_bin_dr)
+toPlot_lm <- get_biomarkers(gcsi_pval_l, ccle_pval_l, gdsc_pval_l, gcsi_lm_dr, ccle_lm_dr, gdsc_lm_dr)
+
+# plot overlapping biomarkers
+png("../results/figures/figure9/top10_bin_pval_biomarkers.png", width = 7, height = 5, res = 600, units = "in")
+ggplot(toPlot_bin, aes(x = PSet, y = pair, fill = W)) + geom_tile() +
+    geom_hline(yintercept = c(10.5, 20.5), linetype = "dashed") +
+    geom_text(aes(label = ifelse(pval < 0.05, "*", ""))) +
+    labs(fill = "Wilcoxon Rank\nSum Test Statistic", y = "Drug-CircRNA Pair", x = "PSet") + 
+    theme_classic() + scale_fill_gradient2(low = 'white', mid = '#E1E7DF', high = '#878E76') +
+    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5))
+dev.off()
+
+png("../results/figures/figure9/top10_lm_pval_biomarkers.png", width = 7, height = 5, res = 600, units = "in")
+ggplot(toPlot_lm, aes(x = PSet, y = pair, fill = estimate)) + geom_tile() +
+    geom_hline(yintercept = c(10.5, 20.5), linetype = "dashed") +
+    geom_text(aes(label = ifelse(pval < 0.05, "*", ""))) +
+    labs(fill = "Linear Regression\nEffect Size", y = "Drug-CircRNA Pair", x = "PSet") + 
+    theme_classic() + scale_fill_gradient2(low = 'white', mid = '#E1E7DF', high = '#878E76') +
+    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5))
+dev.off()
+
+
+############################################################
+# Compare Binarized and Linear Regression Results
+############################################################
