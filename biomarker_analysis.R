@@ -6,6 +6,7 @@ suppressPackageStartupMessages({
     library(ComplexHeatmap)
     library(ggh4x)
     library(ggVennDiagram)
+    library(stringr)
 })
 
 
@@ -572,3 +573,71 @@ plot_venn <- function(bin, lm, pset) {
 plot_venn(gcsi_pval_b, gcsi_pval_l, "gCSI")
 plot_venn(ccle_pval_b, ccle_pval_l, "CCLE")
 plot_venn(gdsc_pval_b, gdsc_pval_l, "GDSC")
+
+
+############################################################
+# Pair-wise correlation plots across PSets
+############################################################
+
+# function to create correlation plot
+corr_pset <- function(pset1, pset2, type, filename) {
+
+    # get common pairs
+    common <- intersect(pset1$pair, pset2$pair)
+    pset1 <- pset1[pset1$pair %in% common,]
+    pset2 <- pset2[pset2$pair %in% common,]
+
+    # rename metric for plotting
+    metric = "Linear Regression\nEffect Size"
+    if (type == "bin") {
+        colnames(pset1)[colnames(pset1) == "W"] <- colnames(pset2)[colnames(pset2) == "W"] <- "estimate"
+        metric = "Wilcoxon Rank Sum\nTest Statistic"
+    } 
+
+    # order dataframes
+    pset1 <- pset1[order(pset1$pair),]
+    pset2 <- pset2[order(pset2$pair),]
+
+    # create dataframe to plot
+    toPlot <- data.frame(pair = pset1$pair, 
+                         estimate1 = pset1$estimate, estimate2 = pset2$estimate,
+                         pval1 = pset1$pval, pval2 = pset2$pval)
+    toPlot <- na.omit(toPlot)
+
+    # create pset labels
+    p1 <- str_split_1(filename, pattern = "_")[1]
+    p2 <- str_split_1(filename, pattern = "_")[2]
+
+    # create pvalue significance label
+    toPlot$pval_sig <- ifelse(toPlot$pval1 < 0.05, 
+                            ifelse(toPlot$pval2 < 0.05, "Both PSets", paste(p1, "Only")),
+                        ifelse(toPlot$pval2 < 0.05, paste(p2, "Only"), "Neither PSet"))
+    toPlot$pval_sig <- factor(toPlot$pval_sig, levels = c("Both PSets", paste(p1, "Only"), paste(p2, "Only"), "Neither PSet"))
+
+    # set palette for plotting
+    pal = c("#FFE573", "#62929E", "#CB807D", "grey")
+
+    # plot scatter plot
+    png(paste0(filename, ".png"), width = 6, height = 4, res = 600, units = "in")
+    print({ggplot() + 
+        geom_point(data = toPlot, aes(x = estimate1, y = estimate2, color = pval_sig), shape = 16) +
+        geom_point(data = toPlot[toPlot$pval_sig == paste(p1, "Only"),], aes(x = estimate1, y = estimate2), size = 2, shape = 21, fill = pal[2]) +
+        geom_point(data = toPlot[toPlot$pval_sig == paste(p2, "Only"),], aes(x = estimate1, y = estimate2), size = 2, shape = 21, fill = pal[3]) +
+        geom_point(data = toPlot[toPlot$pval_sig == "Both PSets", ], aes(x = estimate1, y = estimate2), size = 2.5, shape = 21, fill = pal[1]) +
+        scale_color_manual("P-Value < 0.05", values = pal) +
+        theme_classic() + guides(color = guide_legend(override.aes = list(size = 3))) +
+        theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5)) +
+        labs(x = paste(p1, metric), y = paste(p2, metric))})
+    dev.off()
+}
+
+
+# binarized dr
+gcsi_ccle_b <- corr_pset(gcsi_bin_dr, ccle_bin_dr, "bin", "gCSI_CCLE_bin")
+gcsi_gdsc_b <- corr_pset(gcsi_bin_dr, gdsc_bin_dr, "bin", "gCSI_GDSC_bin")
+ccle_gdsc_b <- corr_pset(ccle_bin_dr, gdsc_bin_dr, "bin", "CCLE_GDSC_bin")
+
+# linear reg dr
+gcsi_ccle_l <- corr_pset(gcsi_lm_dr, ccle_lm_dr, "lm", "gCSI_CCLE_lm")
+gcsi_gdsc_l <- corr_pset(gcsi_lm_dr, gdsc_lm_dr, "lm", "gCSI_GDSC_lm")
+ccle_gdsc_l <- corr_pset(ccle_lm_dr, gdsc_lm_dr, "lm", "CCLE_GDSC_lm")
