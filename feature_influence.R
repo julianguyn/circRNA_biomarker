@@ -132,6 +132,7 @@ runLinearReg <- function(x, label) {
   
   # Change colnames of inputted dataframe
   colnames(x) <- c("median", colnames(x)[2:4], "spearman")
+  x <- na.omit(x)
   
   #10-fold CV
   fitControl <- trainControl(method = "repeatedcv",
@@ -139,7 +140,7 @@ runLinearReg <- function(x, label) {
                              repeats = 10) 
   
   # Loop through each feature
-  for (i in 1:length(colnames(x)[1:4])) {
+  for (i in 1:4) {
     
     feature <- colnames(x)[i]
     
