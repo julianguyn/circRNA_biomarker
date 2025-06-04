@@ -5,6 +5,7 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(ggpubr)
     library(dplyr)
+    library(tidyverse)
 })
 
 set.seed(200)  
@@ -275,7 +276,7 @@ plot_features <- function(res) {
   scale_fill_manual(guide = guide_legend(reverse = FALSE, title = "Dataset"), labels=c("gCSI/CCLE","gCSI/GDSC","GDSC/CCLE"), values = c("#392C57", "#51C7AD", "#3670A0")) + 
   scale_x_discrete(limits = c('Median Expression', 'GC%', 'Number of Exons', 'Length'),
                    labels=c('Median\nExpression', 'GC%', 'Number\nof Exons', 'Length')) + 
-  theme_classic() + scale_y_continuous(limits = c(0, 0.032), expand=c(0,0)) +
+  theme_classic() + #scale_y_continuous(limits = c(0, 0.032), expand=c(0,0)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5),
         text = element_text(size = 15), 
         legend.key.size = unit(0.6, 'cm'),
@@ -288,26 +289,26 @@ plot_features <- function(res) {
 }
  
 
-png("../results/figures/figure8/gene_features.png", width=275, height=150, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure8/gene_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
 plot_features(gene_res)
 dev.off()
 
-png("../results/figures/figure8/transcript_features.png", width=275, height=150, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure8/transcript_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
 plot_features(transcript_res)
 dev.off()
 
-png("../results/figures/figure8/ciri_features.png", width=275, height=150, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure8/ciri_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
 plot_features(ciri_res)
 dev.off()
 
-png("../results/figures/figure8/circ_features.png", width=275, height=150, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure8/circ_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
 plot_features(circ_res)
 dev.off()
 
-png("../results/figures/figure8/cfnd_features.png", width=275, height=150, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure8/cfnd_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
 plot_features(cfnd_res)
 dev.off()
 
-png("../results/figures/figure8/fcrc_features.png", width=275, height=150, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure8/fcrc_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
 plot_features(fcrc_res)
 dev.off()
