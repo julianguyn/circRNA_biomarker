@@ -217,4 +217,3 @@ save(ciri_gdsc_ft, circ_gdsc_ft, cfnd_gdsc_ft, fcrc_gdsc_ft,
 ############################################################
 
 load("../results/data/temp/circ_stability.RData")
-load("../results/data/circ_stability_features.RData")
