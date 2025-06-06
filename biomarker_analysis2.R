@@ -9,6 +9,7 @@ suppressPackageStartupMessages({
     library(ggh4x)
     library(ggVennDiagram)
     library(stringr)
+    library(reshape2)
 })
 
 
@@ -375,3 +376,35 @@ corr_pset <- function(pset1, pset2, type, filename) {
 gcsi_ccle_b <- corr_pset(gcsi_bin_dr, ccle_bin_dr, "bin", "gCSI_CCLE_bin0")
 gcsi_gdsc_b <- corr_pset(gcsi_bin_dr, gdsc_bin_dr, "bin", "gCSI_GDSC_bin0")
 ccle_gdsc_b <- corr_pset(ccle_bin_dr, gdsc_bin_dr, "bin", "CCLE_GDSC_bin0")
+
+
+############################################################
+# Plot distribution of 0 expression
+############################################################
+
+# function to plot the distribution of zero expression cross cell lines
+plot_zeros <- function(bin, filename) {
+
+    # format dataframe for plotting
+    bin <- bin[,colnames(bin) %in% c("Feature", "num_high", "num_samples")] |> unique()
+    bin <- bin[order(bin$num_high, decreasing = T),]
+    toPlot <- melt(bin)
+
+    # get circRNAs order by proportion of >0 expression
+    circs <- bin$Feature
+    toPlot$Feature <- factor(toPlot$Feature, levels = unique(circs))
+
+    png(paste0("dist_zeros_", filename, ".png"), width = 4, height = 5, res = 600, units = "in")
+    print({ggplot(toPlot, aes(y = Feature, x = value, fill = variable)) + 
+        geom_bar(position="dodge", stat="identity") +
+        scale_fill_manual("Expression", values = c("#60A090", "#DDDDDD"), label = c(">0", "0")) +
+        theme(axis.text.y=element_blank(),
+              axis.ticks.y=element_blank()) +
+        labs(x = "Number of Cell Lines", y = "CircRNA Transcript")
+    })
+    dev.off()
+}
+
+plot_zeros(gcsi_bin_dr, "gcsi_bin0")
+plot_zeros(ccle_bin_dr, "ccle_bin0")
+plot_zeros(gdsc_bin_dr, "gdsc_bin0")
