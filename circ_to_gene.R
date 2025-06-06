@@ -91,17 +91,23 @@ circToGene <- function(gr) {
     for (i in 1:length(gr)) {
         genes <- c()
         circRNA = gr[i]
-        overlaps <- findOverlaps(exons, circRNA)
-        hits <- exons[queryHits(overlaps)]
 
-        # ensure at least one exon is contained in circRNA transcript
-        for (gene in names(hits)) {
-            indiv_exons <- hits[[gene]]
-            olaps <- findOverlaps(indiv_exons, circRNA, type = "within")
-            if (length(olaps) > 0)  {
-                genes <- c(genes, gene)
-            }
+        # get exons in circRNA
+        overlaps <- findOverlaps(unlist(exons), circRNA, type = "within")
+        exons_within <- unlist(exons)[queryHits(overlaps)]
+        n_exons <- length(exons_within)
+
+        # skip if there are no exons
+        if (n_exons == 0) {
+            circ_genes[[circRNA$circID]] <- character(0)
+            next
         }
+
+        # table of number of exons per gene
+        gene_counts <- table(names(exons_within))
+
+        # keep genes where number of overlapping exons >= half number of exons in circRNA
+        genes <- names(gene_counts[gene_counts >= floor(n_exons / 2)])
         circ_genes[[circRNA$circID]] <- unname(mcols(exons[genes])$gene_name)
     }
 
