@@ -425,6 +425,7 @@ plot_upset <- function(comb_mat, set_order, filename) {
         top_annotation = upset_top_annotation(comb_mat, add_numbers = TRUE),
         comb_order = order(-comb_size(comb_mat))) 
     })
+    dev.off()
 }
 
 # create list object of transcripts for upset plot
