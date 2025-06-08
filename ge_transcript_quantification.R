@@ -111,7 +111,7 @@ dev.off()
 plot_upset <- function(comb_mat, set_order) {
     p <- UpSet(comb_mat, set_order = set_order,
         top_annotation = upset_top_annotation(comb_mat, add_numbers = TRUE),
-        comb_order = order(-comb_size(comb_mat)))
+        comb_order = order(comb_size(comb_mat)))
     return(p)
 }
 
@@ -160,10 +160,10 @@ df$Pipeline <- factor(df$Pipeline, levels = c("CIRI2", "CIRCexplorer2", "circRNA
 df$PSet <- factor(df$PSet, levels = c("gCSI", "CCLE", "GDSC2"))
 
 # plot bar plot of counts
-png("../results/figures/figure4/counts_ge.png", width=200, height=150, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure4/counts_ge.png", width=150, height=100, units='mm', res = 600, pointsize=80)
 ggplot(df, aes(x = Pipeline, y = log2(Count), fill = PSet)) + geom_bar(stat="identity", position = "dodge", color = "black") +
   scale_fill_manual(values=pal1, limits=c("gCSI", "CCLE", "GDSC2")) + 
-  scale_y_continuous(limits = c(0, 18), expand=c(0,0))  + theme_classic() + 
+  scale_y_continuous(limits = c(0, 13), expand=c(0,0))  + theme_classic() + 
   theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5),
         legend.key.size = unit(0.4, 'cm')) + labs(y = "Log2 Normalized Counts")
 dev.off()
