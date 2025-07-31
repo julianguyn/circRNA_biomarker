@@ -75,7 +75,7 @@ binary_dr <- function(counts_df, drug_df) {
 
     # create data frame to hold results
     combinations <- expand.grid(Drug = rownames(drug_df), Feature = features)
-    combinations$num_samples <- combinations$num_high <- combinations$pval <-  combinations$W <- NA
+    combinations$num_samples <- combinations$num_high <- combinations$diff <- combinations$pval <-  combinations$W <- NA
     combinations$drug <- combinations$feature <- NA
     
     # initiate row count
@@ -105,9 +105,13 @@ binary_dr <- function(counts_df, drug_df) {
                 # wilcoxon rank sum test
                 res <- wilcox.test(high, low, alternative = "two.sided", exact = FALSE)
 
+                # difference in average AAC of two groups
+                AAC_diff <- mean(high[!is.na(high)]) - mean(low[!is.na(low)])
+
                 # save results
                 combinations$W[row] <- res$statistic
                 combinations$pval[row] <- res$p.value
+                combinations$diff[row] <- AAC_diff
                 combinations$num_samples[row] <- nrow(subset)
                 combinations$num_high[row] <- length(high_exp)
                 combinations$feature[row] <- feature
@@ -117,6 +121,7 @@ binary_dr <- function(counts_df, drug_df) {
                 # save results
                 combinations$W[row] <- NA
                 combinations$pval[row] <- NA
+                combinations$diff[row] <- NA
                 combinations$num_samples[row] <- nrow(subset)
                 combinations$num_high[row] <- NA
                 combinations$feature[row] <- feature
