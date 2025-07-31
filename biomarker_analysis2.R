@@ -413,16 +413,23 @@ corr_pset <- function(pset1, pset2, type, filename) {
                         ifelse(toPlot$pval2 < 0.05, paste(p2, "Only"), "Neither PSet"))
     toPlot$pval_sig <- factor(toPlot$pval_sig, levels = c("Both PSets", paste(p1, "Only"), paste(p2, "Only"), "Neither PSet"))
 
+    # label overlapping associations
+    to_keep <- toPlot_bin[toPlot_bin$pval < 0.05,]
+    to_keep <- to_keep[duplicated(to_keep$pair),]$pair
+    toPlot$to_label <- ifelse(toPlot$pair %in% to_keep, gsub(".*_", "", toPlot$pair), "")
+    toPlot$to_label <- ifelse(toPlot$pval_sig != "Both PSets", "", toPlot$to_label)
+
     # set palette for plotting
-    pal = c("#FFE573", "#62929E", "#CB807D", "grey")
+    pal = c("#FCD0A1", "#63535B", "#53917E", "grey")
 
     # plot scatter plot
     png(paste0(filename, ".png"), width = 6, height = 4, res = 600, units = "in")
-    print({ggplot() + 
+    print({ggplot(toPlot, aes(x = estimate1, y = estimate2, label = to_label)) + 
         geom_point(data = toPlot, aes(x = estimate1, y = estimate2, color = pval_sig), shape = 16) +
         geom_point(data = toPlot[toPlot$pval_sig == paste(p1, "Only"),], aes(x = estimate1, y = estimate2), size = 2, shape = 21, fill = pal[2]) +
         geom_point(data = toPlot[toPlot$pval_sig == paste(p2, "Only"),], aes(x = estimate1, y = estimate2), size = 2, shape = 21, fill = pal[3]) +
         geom_point(data = toPlot[toPlot$pval_sig == "Both PSets", ], aes(x = estimate1, y = estimate2), size = 2.5, shape = 21, fill = pal[1]) +
+        geom_text_repel(box.padding = 0.5, max.overlaps = Inf) +
         scale_color_manual("P-Value < 0.05", values = pal) +
         theme_classic() + guides(color = guide_legend(override.aes = list(size = 3))) +
         theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5)) +
