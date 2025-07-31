@@ -10,6 +10,7 @@ suppressPackageStartupMessages({
     library(ggVennDiagram)
     library(stringr)
     library(reshape2)
+    library(ggrepel)
 })
 
 
@@ -319,6 +320,59 @@ ggplot(toPlot_bin, aes(x = PSet, y = pair, fill = W)) + geom_tile() +
     theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5))
 dev.off()
 
+
+############################################################
+# Volcano Plots
+############################################################
+
+plot_volcano <- function(bin_dr, pval_df) {
+
+    bin_dr <- bin_dr[!is.na(bin_dr$diff),]
+
+    # get top5 p-value to label
+    #to_label <- pval_df[order(pval_df$W, decreasing = T),][1:5,]$pair
+    #bin_dr$to_label <- ifelse(bin_dr$pair %in% to_label, gsub("_", "\n", bin_dr$Feature), "")
+
+    # label overlapping associations
+    to_keep <- toPlot_bin[toPlot_bin$pval < 0.05,]
+    to_keep <- to_keep[duplicated(to_keep$pair),]$pair
+    bin_dr$to_label <- ifelse(bin_dr$pair %in% to_keep, gsub("_", "\n", bin_dr$Feature), "")
+
+
+    # label by significance
+    bin_dr$Label <- ifelse(bin_dr$pval < 0.05, 
+            ifelse(bin_dr$diff > 0, "Positive\nAssociation", "Negative\nAssociation"), 
+            "Not FDR\nSignificant")
+    bin_dr$Label <- factor(bin_dr$Label, levels = c("Positive\nAssociation", "Negative\nAssociation", "Not FDR\nSignificant"))
+
+    # get x limits
+    x <- max(c(abs(min(bin_dr$diff)), max(bin_dr$diff)))
+
+    # plot
+    p <- ggplot(bin_dr, aes(x = diff, y = -log(pval), label = to_label)) + 
+        geom_point(aes(color = Label,)) + xlim(-x, x) +
+        geom_text_repel(force_pull = 0.5, nudge_x = x/2, direction = "y", max.overlaps = Inf) +
+        geom_vline(xintercept = c(0.05, -0.05), linetype = "dashed", color = "gray") +
+        theme_classic() + 
+        scale_color_manual(values = c("#3E92CC", "#B23A48", "gray")) +
+        theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5),    
+            legend.key.size = unit(0.5, 'cm')) +
+        labs(x = "Difference in Average AAC", y = "-log(P-Value)")
+    return(p)
+
+}
+
+png("../results/figures/figure9/volcano_bin0_gCSI.png", width = 6, height = 4, res = 600, units = "in")
+plot_volcano(gcsi_bin_dr, gcsi_pval_b)
+dev.off()
+
+png("../results/figures/figure9/volcano_bin0_CCLE.png", width = 6, height = 4, res = 600, units = "in")
+plot_volcano(ccle_bin_dr, ccle_pval_b)
+dev.off()
+
+png("../results/figures/figure9/volcnao_bin0_GDSC.png", width = 6, height = 4, res = 600, units = "in")
+plot_volcano(gdsc_bin_dr, gdsc_pval_b)
+dev.off()
 
 ############################################################
 # Pair-wise correlation plots across PSets
