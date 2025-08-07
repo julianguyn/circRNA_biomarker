@@ -86,6 +86,7 @@ filter_myc <- function(circ) {
     rownames(circ) <- circ$sample
     circ <- circ[,colnames(circ) %in% df$circ]
     print(ncol(circ))
+    circ <- data.frame(MYC = rowMeans(circ))
 
     return(circ)
 }
@@ -120,13 +121,6 @@ save(ciri_gcsi, ciri_gdsc, ciri_ccle,
 
 # load in drug sensitivity from PSets
 load("../data/temp/sensitivity_data.RData")
-
-# belinostat (CTRP)
-belinostat <- ctrp_sen[rownames(ctrp_sen) == "Belinostat",,drop=F]
-belinostat <- belinostat[,colSums(is.na(belinostat))<nrow(belinostat)]
-
-
-
 
 ############################################################
 # Binarize transcript expression by zero expression
@@ -228,13 +222,16 @@ save(ciri_gcsi_bin, ciri_gdsc_bin, ciri_ccle_bin,
      circ_gcsi_bin, circ_gdsc_bin, circ_ccle_bin,
      cfnd_gcsi_bin, cfnd_gdsc_bin, cfnd_ccle_bin,
      fcrc_gcsi_bin, fcrc_gdsc_bin, fcrc_ccle_bin,
-     file = "../results/data/circ_myc_bindr.RData")
+     file = "../results/data/circ_myc_avg_bindr.RData")
+#     file = "../results/data/circ_myc_bindr.RData")
 
 
 
 ############################################################
 # Volcano Plots
 ############################################################
+
+set.seed(101)
 
 plot_volcano <- function(bin_dr) {
 
@@ -244,12 +241,14 @@ plot_volcano <- function(bin_dr) {
     bin_dr$temp <- paste(bin_dr$pair, bin_dr$label, sep = "_")
     to_keep <- bin_dr[bin_dr$FDR < 0.05,]$temp
     bin_dr$to_label <- ifelse(bin_dr$temp %in% to_keep, as.character(bin_dr$Drug), "")
-
+    bin_dr[abs(bin_dr$diff) < 0.03,]$to_label <- ""
 
     # label by significance
     bin_dr$Label <- ifelse(bin_dr$FDR < 0.05, "FDR\nSignificant", "Not FDR\nSignificant")
     bin_dr$Label <- factor(bin_dr$Label, levels = c("FDR\nSignificant", "Not FDR\nSignificant"))
-
+    bin_dr$label <- factor(bin_dr$label, levels = c("CIRI_gCSI", "CIRC_gCSI", "CFND_gCSI", "FCRC_gCSI",
+                                                    "CIRI_CCLE", "CIRC_CCLE", "CFND_CCLE", "FCRC_CCLE",
+                                                    "CIRI_GDSC", "CIRC_GDSC", "CFND_GDSC", "FCRC_GDSC"))
 
     # get x limits
     x <- max(c(abs(min(bin_dr$diff)), max(bin_dr$diff)))
@@ -257,14 +256,15 @@ plot_volcano <- function(bin_dr) {
     # plot
     p <- ggplot() +
         geom_point(data = bin_dr, aes(x = diff, y = -log(FDR)), color = "gray") +
-        geom_point(data = bin_dr[bin_dr$Label == "FDR\nSignificant", ],
+        geom_point(data = bin_dr[!bin_dr$to_label == "", ],
                     aes(x = diff, y = -log(FDR), color = label)) +
-        geom_text_repel(data = bin_dr[bin_dr$Label == "FDR\nSignificant", ],
+        geom_text_repel(data = bin_dr[!bin_dr$to_label == "", ],
                         aes(x = diff, y = -log(FDR), label = to_label),
-                        force_pull = 0.5, max.overlaps = Inf) +
+                        force_pull = 0.5, max.overlaps = Inf, force = 5,
+                        box.padding = 0.4) +
         scale_color_manual(
-            values = c("FCRC_GDSC" = "#B23A48", "FCRC_CCLE" = "#683ab2"), 
-            labels = c("FCRC_GDSC" = "GDSC2 (find_circ)", "FCRC_CCLE" = "CCLE (find_circ)"),
+            values = c("CIRC_gCSI" = "#8181DA", "FCRC_gCSI" = "#271D80", "CFND_CCLE" = "#B23A48", "FCRC_CCLE" = "#6F1E27", "FCRC_GDSC" = "#496F5D"), 
+            labels = c("CIRC_gCSI" = "gCSI (CIRCexplorer2)", "FCRC_gCSI" = "gCSI (find_circ)", "CFND_CCLE" = "CCLE (circRNA_finder)", "FCRC_CCLE" = "CCLE (find_circ)", "FCRC_GDSC" = "GDSC2 (find_circ)"),
             name = "PSet (Pipeline)") +
         theme_classic() + xlim(-x, x) +
         theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5),
@@ -279,6 +279,7 @@ toPlot <- rbind(ciri_gcsi_bin, ciri_gdsc_bin, ciri_ccle_bin,
                 cfnd_gcsi_bin, cfnd_gdsc_bin, cfnd_ccle_bin,
                 fcrc_gcsi_bin, fcrc_gdsc_bin, fcrc_ccle_bin)
 
-png("../results/figures/figure9/myc/volcano.png", width = 6, height = 4, res = 600, units = "in")
+#png("../results/figures/figure9/myc/volcano.png", width = 6, height = 4, res = 600, units = "in")
+png("../results/figures/figure9/myc/myc_avg_volcano.png", width = 7, height = 5, res = 600, units = "in")
 plot_volcano(toPlot)
 dev.off()
