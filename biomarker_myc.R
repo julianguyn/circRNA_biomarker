@@ -235,21 +235,6 @@ set.seed(101)
 
 plot_volcano <- function(bin_dr) {
 
-    bin_dr <- bin_dr[!is.na(bin_dr$diff),]
-
-    # label overlapping associations
-    bin_dr$temp <- paste(bin_dr$pair, bin_dr$label, sep = "_")
-    to_keep <- bin_dr[bin_dr$FDR < 0.05,]$temp
-    bin_dr$to_label <- ifelse(bin_dr$temp %in% to_keep, as.character(bin_dr$Drug), "")
-    bin_dr[abs(bin_dr$diff) < 0.03,]$to_label <- ""
-
-    # label by significance
-    bin_dr$Label <- ifelse(bin_dr$FDR < 0.05, "FDR\nSignificant", "Not FDR\nSignificant")
-    bin_dr$Label <- factor(bin_dr$Label, levels = c("FDR\nSignificant", "Not FDR\nSignificant"))
-    bin_dr$label <- factor(bin_dr$label, levels = c("CIRI_gCSI", "CIRC_gCSI", "CFND_gCSI", "FCRC_gCSI",
-                                                    "CIRI_CCLE", "CIRC_CCLE", "CFND_CCLE", "FCRC_CCLE",
-                                                    "CIRI_GDSC", "CIRC_GDSC", "CFND_GDSC", "FCRC_GDSC"))
-
     # get x limits
     x <- max(c(abs(min(bin_dr$diff)), max(bin_dr$diff)))
 
@@ -279,7 +264,26 @@ toPlot <- rbind(ciri_gcsi_bin, ciri_gdsc_bin, ciri_ccle_bin,
                 cfnd_gcsi_bin, cfnd_gdsc_bin, cfnd_ccle_bin,
                 fcrc_gcsi_bin, fcrc_gdsc_bin, fcrc_ccle_bin)
 
+toPlot <- toPlot[!is.na(toPlot$diff),]
+
+# label overlapping associations
+toPlot$temp <- paste(toPlot$pair, toPlot$label, sep = "_")
+to_keep <- toPlot[toPlot$FDR < 0.05,]$temp
+toPlot$to_label <- ifelse(toPlot$temp %in% to_keep, as.character(toPlot$Drug), "")
+
+# keep only associations with magnitude difference > 0.03
+toPlot[abs(toPlot$diff) < 0.03,]$to_label <- ""
+
+# label by significance
+toPlot$Label <- ifelse(toPlot$FDR < 0.05, "FDR\nSignificant", "Not FDR\nSignificant")
+toPlot$Label <- factor(toPlot$Label, levels = c("FDR\nSignificant", "Not FDR\nSignificant"))
+toPlot$label <- factor(toPlot$label, levels = c("CIRI_gCSI", "CIRC_gCSI", "CFND_gCSI", "FCRC_gCSI",
+                                                "CIRI_CCLE", "CIRC_CCLE", "CFND_CCLE", "FCRC_CCLE",
+                                                "CIRI_GDSC", "CIRC_GDSC", "CFND_GDSC", "FCRC_GDSC"))
+
+
 #png("../results/figures/figure9/myc/volcano.png", width = 6, height = 4, res = 600, units = "in")
 png("../results/figures/figure9/myc/myc_avg_volcano.png", width = 7, height = 5, res = 600, units = "in")
 plot_volcano(toPlot)
 dev.off()
+
