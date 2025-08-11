@@ -347,7 +347,7 @@ ggplot(sig_drug, aes(x = PSet, y = Drug, fill = W)) +
   facet_grid(. ~ Pipeline, scales = "free_x", space = "free_x") +
   labs(fill = "Wilcoxon Rank\nSum Test Statistic", y = "Drug", x = "PSet (Pipeline)") +
   theme_classic() +
-  scale_fill_gradient2(low = 'white', mid = '#E1E7DF', high = '#878E76', na.value="#A6A6A6")+
+  scale_fill_gradient2(low = 'white', mid = '#E1E7DF', high = '#878E76', na.value="white")+
   theme(
     strip.background = element_rect(fill = "#f0f0f0"),
     panel.border = element_rect(color = "black", fill = NA, size = 0.5),
