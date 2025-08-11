@@ -287,3 +287,71 @@ png("../results/figures/figure9/myc/myc_avg_volcano.png", width = 7, height = 5,
 plot_volcano(toPlot)
 dev.off()
 
+
+############################################################
+# Stats of MYC drug associations in other PSets/Pipelines
+############################################################
+
+# save significant MYC drug associations
+drugs <- toPlot[!toPlot$to_label == "",]$Drug |> as.character() |> unique()
+
+# function to create dataframe for plotting
+formatMYC <- function(drug_df, label) {
+
+    # subset bin results
+    subset <- toPlot[toPlot$label == label,]
+
+    # create dataframe for plotting
+    df <- data.frame(Drug = drugs, Label = label, Status = NA, W = NA)
+
+    for (i in seq_along(drugs)) {
+        drug = df$Drug[i]
+
+        if (!drug %in% rownames(drug_df)) {
+            df$Status[i] <- ""
+        } else if (!drug %in% subset$Drug) {
+            df$W[i] <- 0
+            df$Status[i] <- "NA"
+        } else {
+
+            df$W[i] <- subset[subset$Drug == drug,]$W   # P-Val > 0.05
+            df$Status[i] <- ""
+
+            # check p-value and FDR
+            if (subset[subset$Drug == drug,]$pval < 0.05) { #P-Val < 0.05
+                df$Status[i] <- "*"
+            }
+            if (subset[subset$Drug == drug,]$FDR < 0.05) { #FDR < 0.05
+                df$Status[i] <- "**"
+            }
+        }
+    }
+    return(df)
+}
+
+sig_drug <- rbind(formatMYC(gcsi_sen, "CIRI_gCSI"), formatMYC(ccle_sen, "CIRI_CCLE"), formatMYC(gdsc_sen, "CIRI_GDSC"),
+                  formatMYC(gcsi_sen, "CIRC_gCSI"), formatMYC(ccle_sen, "CIRC_CCLE"), formatMYC(gdsc_sen, "CIRC_GDSC"),
+                  formatMYC(gcsi_sen, "CFND_gCSI"), formatMYC(ccle_sen, "CFND_CCLE"), formatMYC(gdsc_sen, "CFND_GDSC"),
+                  formatMYC(gcsi_sen, "FCRC_gCSI"), formatMYC(ccle_sen, "FCRC_CCLE"), formatMYC(gdsc_sen, "FCRC_GDSC"))
+sig_drug$PSet <- gsub(".*_", "", sig_drug$Label)
+sig_drug$Pipeline <- rep(c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"), each = 36)
+sig_drug$Pipeline <- factor(sig_drug$Pipeline, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+sig_drug$PSet <- factor(sig_drug$PSet, levels = c("gCSI", "CCLE", "GDSC"))
+
+
+# plot overlapping biomarkers
+png("myc_overlap.png", width = 6, height = 7, res = 600, units = "in")
+ggplot(sig_drug, aes(x = PSet, y = Drug, fill = W)) +
+  geom_tile() +
+  geom_text(aes(label = Status), size = 2) +
+  facet_grid(. ~ Pipeline, scales = "free_x", space = "free_x") +
+  labs(fill = "Wilcoxon Rank\nSum Test Statistic", y = "Drug", x = "PSet (Pipeline)") +
+  theme_classic() +
+  scale_fill_gradient2(low = 'white', mid = '#E1E7DF', high = '#878E76', na.value="#D1D1D1")+
+  theme(
+    strip.background = element_rect(fill = "#f0f0f0"),
+    panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+    axis.text.x = element_text(angle = 90, hjust = 1),
+    legend.title = element_text(size = 8)
+)
+dev.off()
