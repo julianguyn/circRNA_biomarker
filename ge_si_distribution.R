@@ -17,42 +17,42 @@ set.seed(123)
 # load circRNA expression data
 path <- "../data/processed_cellline/GE_common_samples/"
 
-ciri_gcsi <- fread(paste0(path, "CIRI2/ciri_gcsi_counts.tsv"), data.table = F)                          #ncol: 2502
-ciri_gdsc <- fread(paste0(path, "CIRI2/ciri_gdsc_counts.tsv"), data.table = F)                          #ncol: 3039
-ciri_ccle <- fread(paste0(path, "CIRI2/ciri_ccle_counts.tsv"), data.table = F)                          #ncol: 2076
+ciri_gcsi <- fread(paste0(path, "CIRI2/ciri_gcsi_counts.tsv"), data.table = F)                          #ncol: 1586
+ciri_gdsc <- fread(paste0(path, "CIRI2/ciri_gdsc_counts.tsv"), data.table = F)                          #ncol: 983
+ciri_ccle <- fread(paste0(path, "CIRI2/ciri_ccle_counts.tsv"), data.table = F)                          #ncol: 1800
 
-circ_gcsi <- fread(paste0(path, "CIRCexplorer2/circ_gcsi_counts.tsv"), data.table = F)                  #ncol: 3658
-circ_gdsc <- fread(paste0(path, "CIRCexplorer2/circ_gdsc_counts.tsv"), data.table = F)                  #ncol: 3004
-circ_ccle <- fread(paste0(path, "CIRCexplorer2/circ_ccle_counts.tsv"), data.table = F)                  #ncol: 2680
+circ_gcsi <- fread(paste0(path, "CIRCexplorer2/circ_gcsi_counts.tsv"), data.table = F)                  #ncol: 3367
+circ_gdsc <- fread(paste0(path, "CIRCexplorer2/circ_gdsc_counts.tsv"), data.table = F)                  #ncol: 2438
+circ_ccle <- fread(paste0(path, "CIRCexplorer2/circ_ccle_counts.tsv"), data.table = F)                  #ncol: 2730
 
-cfnd_gcsi <- fread(paste0(path, "circRNA_finder/cfnd_gcsi_counts.tsv"), data.table = F)                 #ncol: 9459
-cfnd_gdsc <- fread(paste0(path, "circRNA_finder/cfnd_gdsc_counts.tsv"), data.table = F)                 #ncol: 9684
-cfnd_ccle <- fread(paste0(path, "circRNA_finder/cfnd_ccle_counts.tsv"), data.table = F)                 #ncol: 3596
+cfnd_gcsi <- fread(paste0(path, "circRNA_finder/cfnd_gcsi_counts.tsv"), data.table = F)                 #ncol: 8676
+cfnd_gdsc <- fread(paste0(path, "circRNA_finder/cfnd_gdsc_counts.tsv"), data.table = F)                 #ncol: 3042
+cfnd_ccle <- fread(paste0(path, "circRNA_finder/cfnd_ccle_counts.tsv"), data.table = F)                 #ncol: 8675
 
-fcrc_gcsi <- fread(paste0(path, "find_circ/fcrc_gcsi_counts.tsv"), data.table = F)                      #ncol: 29898
-fcrc_gdsc <- fread(paste0(path, "find_circ/fcrc_gdsc_counts.tsv"), data.table = F)                      #ncol: 30660
-fcrc_ccle <- fread(paste0(path, "find_circ/fcrc_ccle_counts.tsv"), data.table = F)                      #ncol: 30728   
+fcrc_gcsi <- fread(paste0(path, "find_circ/fcrc_gcsi_counts.tsv"), data.table = F)                      #ncol: 3466
+fcrc_gdsc <- fread(paste0(path, "find_circ/fcrc_gdsc_counts.tsv"), data.table = F)                      #ncol: 3169
+fcrc_ccle <- fread(paste0(path, "find_circ/fcrc_ccle_counts.tsv"), data.table = F)                      #ncol: 4539   
 
 
 ############################################################
 # Filter low exp transcripts
 ############################################################
 
-ciri_gcsi <- ciri_gcsi[,-which(colnames(ciri_gcsi) %in% names(which(colSums(ciri_gcsi == 0) > 45)))]    #ncol: 409
-ciri_ccle <- ciri_ccle[,-which(colnames(ciri_ccle) %in% names(which(colSums(ciri_ccle == 0) > 45)))]    #ncol: 480
-ciri_gdsc <- ciri_gdsc[,-which(colnames(ciri_gdsc) %in% names(which(colSums(ciri_gdsc == 0) > 45)))]    #ncol: 300
+ciri_gcsi <- ciri_gcsi[,-which(colnames(ciri_gcsi) %in% names(which(colSums(ciri_gcsi == 0) > 45)))]    #ncol: 263
+ciri_ccle <- ciri_ccle[,-which(colnames(ciri_ccle) %in% names(which(colSums(ciri_ccle == 0) > 45)))]    #ncol: 173
+ciri_gdsc <- ciri_gdsc[,-which(colnames(ciri_gdsc) %in% names(which(colSums(ciri_gdsc == 0) > 45)))]    #ncol: 292
 
-circ_gcsi <- circ_gcsi[,-which(colnames(circ_gcsi) %in% names(which(colSums(circ_gcsi == 0) > 45)))]    #ncol: 679
-circ_ccle <- circ_ccle[,-which(colnames(circ_ccle) %in% names(which(colSums(circ_ccle == 0) > 45)))]    #ncol: 480
-circ_gdsc <- circ_gdsc[,-which(colnames(circ_gdsc) %in% names(which(colSums(circ_gdsc == 0) > 45)))]    #ncol: 460
+circ_gcsi <- circ_gcsi[,-which(colnames(circ_gcsi) %in% names(which(colSums(circ_gcsi == 0) > 45)))]    #ncol: 648
+circ_ccle <- circ_ccle[,-which(colnames(circ_ccle) %in% names(which(colSums(circ_ccle == 0) > 45)))]    #ncol: 433
+circ_gdsc <- circ_gdsc[,-which(colnames(circ_gdsc) %in% names(which(colSums(circ_gdsc == 0) > 45)))]    #ncol: 450
 
-cfnd_gcsi <- cfnd_gcsi[,-which(colnames(cfnd_gcsi) %in% names(which(colSums(cfnd_gcsi == 0) > 45)))]    #ncol: 3798
-cfnd_ccle <- cfnd_ccle[,-which(colnames(cfnd_ccle) %in% names(which(colSums(cfnd_ccle == 0) > 45)))]    #ncol: 3669
-cfnd_gdsc <- cfnd_gdsc[,-which(colnames(cfnd_gdsc) %in% names(which(colSums(cfnd_gdsc == 0) > 45)))]    #ncol: 586
+cfnd_gcsi <- cfnd_gcsi[,-which(colnames(cfnd_gcsi) %in% names(which(colSums(cfnd_gcsi == 0) > 45)))]    #ncol: 3496
+cfnd_ccle <- cfnd_ccle[,-which(colnames(cfnd_ccle) %in% names(which(colSums(cfnd_ccle == 0) > 45)))]    #ncol: 492
+cfnd_gdsc <- cfnd_gdsc[,-which(colnames(cfnd_gdsc) %in% names(which(colSums(cfnd_gdsc == 0) > 45)))]    #ncol: 3281
 
-fcrc_gcsi <- fcrc_gcsi[,-which(colnames(fcrc_gcsi) %in% names(which(colSums(fcrc_gcsi == 0) > 45)))]    #ncol: 28390
-fcrc_ccle <- fcrc_ccle[,-which(colnames(fcrc_ccle) %in% names(which(colSums(fcrc_ccle == 0) > 45)))]    #ncol: 29738
-fcrc_gdsc <- fcrc_gdsc[,-which(colnames(fcrc_gdsc) %in% names(which(colSums(fcrc_gdsc == 0) > 45)))]    #ncol: 30029
+fcrc_gcsi <- fcrc_gcsi[,-which(colnames(fcrc_gcsi) %in% names(which(colSums(fcrc_gcsi == 0) > 45)))]    #ncol: 660
+fcrc_ccle <- fcrc_ccle[,-which(colnames(fcrc_ccle) %in% names(which(colSums(fcrc_ccle == 0) > 45)))]    #ncol: 663
+fcrc_gdsc <- fcrc_gdsc[,-which(colnames(fcrc_gdsc) %in% names(which(colSums(fcrc_gdsc == 0) > 45)))]    #ncol: 1110
 
 
 ############################################################
@@ -74,10 +74,10 @@ subset_df <- function(df, common_transcripts) {
 }
 
 # get common gene transcripts found in all psets for each pipeline
-ciri_common <- intersect(intersect(colnames(ciri_gcsi), colnames(ciri_ccle)), colnames(ciri_gdsc))      #n: 124
-circ_common <- intersect(intersect(colnames(circ_gcsi), colnames(circ_ccle)), colnames(circ_gdsc))      #n: 124
-cfnd_common <- intersect(intersect(colnames(cfnd_gcsi), colnames(cfnd_ccle)), colnames(cfnd_gdsc))      #n: 311
-fcrc_common <- intersect(intersect(colnames(fcrc_gcsi), colnames(fcrc_ccle)), colnames(fcrc_gdsc))      #n: 28185
+ciri_common <- intersect(intersect(colnames(ciri_gcsi), colnames(ciri_ccle)), colnames(ciri_gdsc))      #n: 50
+circ_common <- intersect(intersect(colnames(circ_gcsi), colnames(circ_ccle)), colnames(circ_gdsc))      #n: 122
+cfnd_common <- intersect(intersect(colnames(cfnd_gcsi), colnames(cfnd_ccle)), colnames(cfnd_gdsc))      #n: 269
+fcrc_common <- intersect(intersect(colnames(fcrc_gcsi), colnames(fcrc_ccle)), colnames(fcrc_gdsc))      #n: 176
 
 # filter for common transcripts
 ciri_gcsi <- subset_df(ciri_gcsi, ciri_common)
@@ -96,6 +96,12 @@ fcrc_gcsi <- subset_df(fcrc_gcsi, fcrc_common)
 fcrc_ccle <- subset_df(fcrc_ccle, fcrc_common)
 fcrc_gdsc <- subset_df(fcrc_gdsc, fcrc_common)
 
+############################################################
+# Load isoform and gene expression data
+############################################################
+
+load("../results/data/isoform_expression.RData")
+load("../results/data/gene_expression.RData")
 
 ############################################################
 # Compute pairwise Spearman corr from datasets 
@@ -114,6 +120,8 @@ compute_spearman <- function(gcsi_df, ccle_df, gdsc_df, random = FALSE, iter = 1
 
     # loop through for number of iterations
     for (i in 1:iter) {
+
+        if (i %% 10 == 0) {print(i)}
     
         if (random == TRUE) {
             # shuffle cell line names
@@ -158,6 +166,13 @@ save(ciri_stability_random, circ_stability_random, cfnd_stability_random, fcrc_s
      file = "../results/data/temp/circ_ge_stability_random.RData")
 
 
+# compute sperman correlations after random shuffling for gene and isoform expression
+gene_stability_random <- compute_spearman(expr_gcsi_p, expr_ccle_p, expr_gdsc_p, random = TRUE, iter = 100)
+isof_stability_random <- compute_spearman(expr_gcsi_i, expr_ccle_i, expr_gdsc_i, random = TRUE, iter = 100)
+
+save(gene_stability_random, isof_stability_random, 
+     file = "../results/data/temp/gene_isoform_stability_random.RData")
+
 ############################################################
 # Format stability index matrices for plotting
 ############################################################
@@ -189,37 +204,29 @@ transcript_stability <- format_df(transcript_stability[,c("gcsi_ccle_spearman", 
 gene_stability <- format_df(gene_stability[,c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")], "Gene Expression")
 gene_stability[is.na(gene_stability)] <- 0
 
+gene_stability_random <- format_df(gene_stability_random, "Gene Expression", "Random")
+transcript_stability_random <- format_df(isof_stability_random, "Isoforms", "Random")
+
 ############################################################
 # Figure 5: Plot stability index distribution 
 ############################################################
 
-# merge nonrandom results for plotting
-toPlot <- rbind(gene_stability, transcript_stability, 
-                ciri_stability, circ_stability, 
-                cfnd_stability, fcrc_stability)
+# merge results for plotting
+toPlot <- rbind(gene_stability, transcript_stability, ciri_stability, circ_stability, cfnd_stability, fcrc_stability,
+                gene_stability_random, transcript_stability_random, ciri_stability_random, circ_stability_random, cfnd_stability_random, fcrc_stability_random)
+toPlot <- melt(toPlot)
 toPlot$label <- factor(toPlot$label, levels = c("Gene Expression", "Isoforms", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 
-png("../results/figures/figure5/stability_nonrandom_ge.png", width=300, height=150, units='mm', res = 600, pointsize=80)
-ggplot(toPlot, aes(x = label, y = Stability)) + 
-    geom_violin(aes(fill = label), alpha = 0.8) + geom_boxplot(width=0.1, alpha = 0.3) +
+png("../results/figures/figure5/stability_ge.png", width=250, height=200, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = label, y = value, fill = random)) + 
+    geom_violin(data = toPlot[toPlot$random == "NonRandom",], aes(fill = label), alpha = 0.75) + 
+    geom_violin(data = toPlot[which(toPlot$random == "Random" & toPlot$label == "Gene Expression"),], alpha = 0.8, fill = "grey") + 
+    geom_violin(data = toPlot[which(toPlot$random == "Random" & toPlot$label == "Isoforms"),], alpha = 0.8, fill = "grey") + 
+    geom_violin(data = toPlot[which(toPlot$random == "Random" & toPlot$label %in% c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ")),], alpha = 0.8, fill = "grey") +
+    geom_boxplot(width=0.1, alpha = 0.8) +
+    scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A", "#343434", "grey")) +
     facet_grid(factor(PSet)~.) +
     theme_classic() + labs(x = "", fill = "", y = "Stability Index") +
-    scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
-    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.7, 'cm')) +
-    geom_hline(yintercept = 0, linetype = "dotted")
-dev.off()
-
-
-# merge random results for plotting
-toPlot <- rbind(ciri_stability, circ_stability, cfnd_stability, fcrc_stability,
-                ciri_stability_random, circ_stability_random, cfnd_stability_random, fcrc_stability_random)
-toPlot <- melt(toPlot)
-toPlot$label <- factor(toPlot$label, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
-
-png("../results/figures/figure5/stability_random_ge.png", width=150, height=150, units='mm', res = 600, pointsize=80)
-ggplot(toPlot, aes(x = PSet, y = value, fill = random)) + 
-    geom_boxplot() + facet_grid(label~.) + theme_classic() + 
-    labs(x = "", fill = "", y = "Stability Index") + scale_fill_manual(values = c("#839788", "gray")) +
     theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.7, 'cm')) +
     geom_hline(yintercept = 0, linetype = "dotted")
 dev.off()
