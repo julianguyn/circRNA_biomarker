@@ -276,77 +276,60 @@ save(gene_stability, transcript_stability,
      file = "../results/data/temp/gene_isoform_stability.RData")
 
 ############################################################
-# Plot comparison of SI indices
+# Format stability index matrices for plotting
 ############################################################
 
 # function to format stability dataframes
-format_df <- function(df, label) {
-  colnames(df) <- c("gCSI/CCLE", "gCSI/GDSC2", "GDSC2/CCLE")
-  toPlot <- melt(df)
-  colnames(toPlot) <- c("PSet", "Stability")
-  toPlot$label <- label
-  return(toPlot)
+format_df <- function(df, label, random = "NonRandom") {
+    if (ncol(df) == 4) {df <- df[,c(1:3)]}
+    colnames(df) <- c("gCSI/CCLE", "gCSI/GDSC2", "GDSC2/CCLE")
+    toPlot <- melt(df)
+    colnames(toPlot) <- c("PSet", "Stability")
+    toPlot$label <- label
+    toPlot$random <- random
+    return(toPlot)
 }
 
-ciri_stability <- format_df(ciri_stability, "CIRI2")
-circ_stability <- format_df(circ_stability, "CIRCexplorer2")
-cfnd_stability <- format_df(cfnd_stability, "circRNA_finder")
-fcrc_stability <- format_df(fcrc_stability, "find_circ")
+ciri_stability <- format_df(ciri_stability, "CIRI2", "NonRandom")
+circ_stability <- format_df(circ_stability, "CIRCexplorer2", "NonRandom")
+cfnd_stability <- format_df(cfnd_stability, "circRNA_finder", "NonRandom")
+fcrc_stability <- format_df(fcrc_stability, "find_circ", "NonRandom")
+
+ciri_stability_random <- format_df(ciri_stability_random, "CIRI2", "Random")
+circ_stability_random <- format_df(circ_stability_random, "CIRCexplorer2", "Random")
+cfnd_stability_random <- format_df(cfnd_stability_random, "circRNA_finder", "Random")
+fcrc_stability_random <- format_df(fcrc_stability_random, "find_circ", "Random")
+
 
 transcript_stability <- format_df(transcript_stability[,c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")], "Isoforms")
 gene_stability <- format_df(gene_stability[,c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")], "Gene Expression")
 gene_stability[is.na(gene_stability)] <- 0
 
+# load in gene and isoform randomize stability (from ge_si_distribution.R)
+load("../results/data/temp/gene_isoform_stability_random.RData")
+
+gene_stability_random <- format_df(gene_stability_random, "Gene Expression", "Random")
+transcript_stability_random <- format_df(isof_stability_random, "Isoforms", "Random")
+
+
+############################################################
+# Figure 2: Plot stability index distribution 
+############################################################
+
 
 # merge results for plotting
-toPlot <- rbind(gene_stability, transcript_stability, 
-                ciri_stability, circ_stability, 
-                cfnd_stability, fcrc_stability)
-
+toPlot <- rbind(gene_stability, transcript_stability, ciri_stability, circ_stability, cfnd_stability, fcrc_stability,
+                gene_stability_random, transcript_stability_random, ciri_stability_random, circ_stability_random, cfnd_stability_random, fcrc_stability_random)
+toPlot <- melt(toPlot)
 toPlot$label <- factor(toPlot$label, levels = c("Gene Expression", "Isoforms", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 
-
-png("../results/figures/figure2/stability.png", width=300, height=150, units='mm', res = 600, pointsize=80)
-ggplot(toPlot, aes(x = label, y = Stability)) + 
-    geom_violin(aes(fill = label), alpha = 0.8) + geom_boxplot(width=0.1, alpha = 0.3) +
+png("../results/figures/figure2/stability.png", width=250, height=200, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = label, y = value, fill = random)) + 
+    geom_violin(data = toPlot[toPlot$random == "NonRandom",], aes(fill = label), alpha = 0.75) + 
+    geom_boxplot(data = toPlot[which(toPlot$random == "Random"),], width=0.1, alpha = 0.8) + 
+    scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A", "#343434", "grey")) +
     facet_grid(factor(PSet)~.) +
     theme_classic() + labs(x = "", fill = "", y = "Stability Index") +
-    scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
     theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.7, 'cm')) +
     geom_hline(yintercept = 0, linetype = "dotted")
 dev.off()
-
-
-############################################################
-# Plot comparison of SI indices with random shuffling
-############################################################
-
-# label dataframes
-ciri_stability$label <- "CIRI2-NonRandom"
-circ_stability$label <- "CIRCexplorer2-NonRandom"
-cfnd_stability$label <- "circRNA_finder-NonRandom"
-fcrc_stability$label <- "find_circ-NonRandom"
-
-ciri_stability_random$label <- "CIRI2-Random"
-circ_stability_random$label <- "CIRCexplorer2-Random"
-cfnd_stability_random$label <- "circRNA_finder-Random"
-fcrc_stability_random$label <- "find_circ-Random"
-
-# format dataframe for plotting
-toPlot <- rbind(ciri_stability, circ_stability, cfnd_stability, fcrc_stability,
-                ciri_stability_random, circ_stability_random, cfnd_stability_random, fcrc_stability_random)
-toPlot <- melt(toPlot)
-toPlot$Label <- gsub(".*-", "", toPlot$label)
-toPlot$PSet <- gsub("-.*", "", toPlot$label)
-toPlot$PSet <- factor(toPlot$PSet, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
-
-# plot
-png("../results/figures/figure2/stability_randomized.png", width=300, height=150, units='mm', res = 600, pointsize=80)
-ggplot(toPlot, aes(x = variable, y = value, fill = Label)) + 
-    #geom_violin(aes(fill = Label), alpha = 0.8) + 
-    geom_boxplot() + facet_grid(PSet~.) + theme_classic() + 
-    labs(x = "", fill = "", y = "Stability Index") + scale_fill_manual(values = c("#839788", "gray")) +
-    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.7, 'cm')) +
-    geom_hline(yintercept = 0, linetype = "dotted")
-dev.off()
-
