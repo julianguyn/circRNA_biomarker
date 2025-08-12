@@ -220,10 +220,7 @@ toPlot$label <- factor(toPlot$label, levels = c("Gene Expression", "Isoforms", "
 png("../results/figures/figure5/stability_ge.png", width=250, height=200, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = label, y = value, fill = random)) + 
     geom_violin(data = toPlot[toPlot$random == "NonRandom",], aes(fill = label), alpha = 0.75) + 
-    geom_violin(data = toPlot[which(toPlot$random == "Random" & toPlot$label == "Gene Expression"),], alpha = 0.8, fill = "grey") + 
-    geom_violin(data = toPlot[which(toPlot$random == "Random" & toPlot$label == "Isoforms"),], alpha = 0.8, fill = "grey") + 
-    geom_violin(data = toPlot[which(toPlot$random == "Random" & toPlot$label %in% c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ")),], alpha = 0.8, fill = "grey") +
-    geom_boxplot(width=0.1, alpha = 0.8) +
+    geom_boxplot(data = toPlot[which(toPlot$random == "Random"),], width=0.1, alpha = 0.8) + 
     scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A", "#343434", "grey")) +
     facet_grid(factor(PSet)~.) +
     theme_classic() + labs(x = "", fill = "", y = "Stability Index") +
