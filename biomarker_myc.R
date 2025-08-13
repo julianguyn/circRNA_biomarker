@@ -350,18 +350,18 @@ sig_drug$PSet <- factor(sig_drug$PSet, levels = c("gCSI", "CCLE", "GDSC"))
 sig_drug$Drug <- factor(sig_drug$Drug, levels = unique(rev(sig_drug$Drug[order(sig_drug$Drug)])))
 
 # plot overlapping biomarkers
-png("../results/figures/figure9/myc/myc_overlap_2.png", width = 6, height = 7, res = 600, units = "in")
+png("../results/figures/figure9/myc/myc_overlap.png", width = 6.5, height = 6, res = 600, units = "in")
 ggplot(sig_drug, aes(x = PSet, y = Drug, fill = W)) +
   geom_tile() +
-  geom_text(aes(label = Status), size = 2) +
+  geom_text(aes(label = Status), size = 3) +
   facet_grid(. ~ Pipeline, scales = "free_x", space = "free_x") +
-  labs(fill = "Wilcoxon Rank\nSum Test Statistic", y = "Drug", x = "PSet (Pipeline)") +
+  labs(fill = "Wilcoxon Rank\nSum Test\nStatistic", y = "Drug", x = "PSet (Pipeline)") +
   theme_classic() +
   scale_fill_gradient2(low = 'white', mid = '#E1E7DF', high = '#878E76', na.value="white")+
   theme(
     strip.background = element_rect(fill = "#f0f0f0"),
     panel.border = element_rect(color = "black", fill = NA, size = 0.5),
     axis.text.x = element_text(angle = 90, hjust = 1),
-    legend.title = element_text(size = 8)
+    legend.title = element_text(size = 9)
 )
 dev.off()
