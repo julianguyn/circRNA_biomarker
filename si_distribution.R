@@ -324,12 +324,12 @@ toPlot <- melt(toPlot)
 toPlot$label <- factor(toPlot$label, levels = c("Gene Expression", "Isoforms", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 
 png("../results/figures/figure2/stability.png", width=250, height=200, units='mm', res = 600, pointsize=80)
-ggplot(toPlot, aes(x = label, y = value, fill = random)) + 
-    geom_violin(data = toPlot[toPlot$random == "NonRandom",], aes(fill = label), alpha = 0.75) + 
-    geom_boxplot(data = toPlot[which(toPlot$random == "Random"),], width=0.1, alpha = 0.8) + 
+ggplot(toPlot, aes(x = label, y = value, fill = label)) + 
+    geom_boxplot(data = toPlot, aes(alpha = random)) + 
     scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A", "#343434", "grey")) +
+    scale_alpha_manual(values = c(1, 0.2)) +
     facet_grid(factor(PSet)~.) +
-    theme_classic() + labs(x = "", fill = "", y = "Stability Index") +
+    theme_classic() + labs(x = "", fill = "", y = "Stability Index", alpha = "Randomization") +
     theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.7, 'cm')) +
     geom_hline(yintercept = 0, linetype = "dotted")
 dev.off()
