@@ -122,6 +122,16 @@ save(ciri_gcsi, ciri_gdsc, ciri_ccle,
 # load in drug sensitivity from PSets
 load("../data/temp/sensitivity_data.RData")
 
+# drugs of interest
+gcsi_ctrp <- intersect(rownames(gcsi_sen), rownames(ctrp_sen))
+gcsi_gdsc <- intersect(rownames(gcsi_sen), rownames(gdsc_sen))
+ctrp_gdsc <- intersect(rownames(ctrp_sen), rownames(gdsc_sen))
+
+# keep drugs of interest
+gcsi_sen <- gcsi_sen[rownames(gcsi_sen) %in% c(gcsi_ctrp, gcsi_gdsc), ]
+ctrp_sen <- ctrp_sen[rownames(ctrp_sen) %in% c(gcsi_ctrp, ctrp_gdsc), ]
+gdsc_sen <- gdsc_sen[rownames(gdsc_sen) %in% c(gcsi_gdsc, ctrp_gdsc), ]
+
 ############################################################
 # Binarize transcript expression by zero expression
 ############################################################
@@ -203,19 +213,19 @@ binary_dr <- function(counts_df, drug_df, label) {
 
 ciri_gcsi_bin <- binary_dr(ciri_gcsi, gcsi_sen, "CIRI_gCSI")
 ciri_gdsc_bin <- binary_dr(ciri_gdsc, gdsc_sen, "CIRI_GDSC")
-ciri_ccle_bin <- binary_dr(ciri_ccle, ccle_sen, "CIRI_CCLE")
+ciri_ccle_bin <- binary_dr(ciri_ccle, ctrp_sen, "CIRI_CCLE")
 
 circ_gcsi_bin <- binary_dr(circ_gcsi, gcsi_sen, "CIRC_gCSI")
 circ_gdsc_bin <- binary_dr(circ_gdsc, gdsc_sen, "CIRC_GDSC")
-circ_ccle_bin <- binary_dr(circ_ccle, ccle_sen, "CIRC_CCLE")
+circ_ccle_bin <- binary_dr(circ_ccle, ctrp_sen, "CIRC_CCLE")
 
 cfnd_gcsi_bin <- binary_dr(cfnd_gcsi, gcsi_sen, "CFND_gCSI")
 cfnd_gdsc_bin <- binary_dr(cfnd_gdsc, gdsc_sen, "CFND_GDSC")
-cfnd_ccle_bin <- binary_dr(cfnd_ccle, ccle_sen, "CFND_CCLE")
+cfnd_ccle_bin <- binary_dr(cfnd_ccle, ctrp_sen, "CFND_CCLE")
 
 fcrc_gcsi_bin <- binary_dr(fcrc_gcsi, gcsi_sen, "FCRC_gCSI")
 fcrc_gdsc_bin <- binary_dr(fcrc_gdsc, gdsc_sen, "FCRC_GDSC")
-fcrc_ccle_bin <- binary_dr(fcrc_ccle, ccle_sen, "FCRC_CCLE")
+fcrc_ccle_bin <- binary_dr(fcrc_ccle, ctrp_sen, "FCRC_CCLE")
 
 # save dataframes
 save(ciri_gcsi_bin, ciri_gdsc_bin, ciri_ccle_bin,
@@ -248,8 +258,8 @@ plot_volcano <- function(bin_dr) {
                         force_pull = 0.5, max.overlaps = Inf, force = 5,
                         box.padding = 0.4) +
         scale_color_manual(
-            values = c("CIRC_gCSI" = "#8181DA", "FCRC_gCSI" = "#271D80", "CFND_CCLE" = "#B23A48", "FCRC_CCLE" = "#6F1E27", "FCRC_GDSC" = "#496F5D"), 
-            labels = c("CIRC_gCSI" = "gCSI (CIRCexplorer2)", "FCRC_gCSI" = "gCSI (find_circ)", "CFND_CCLE" = "CCLE (circRNA_finder)", "FCRC_CCLE" = "CCLE (find_circ)", "FCRC_GDSC" = "GDSC2 (find_circ)"),
+            values = c("CFND_CCLE" = "#9393cfff", "FCRC_CCLE" = "#271D80", "FCRC_GDSC" = "#6F1E27"), 
+            labels = c("CFND_CCLE" = "CCLE (circRNA_finder)", "FCRC_CCLE" = "CCLE (find_circ)", "FCRC_GDSC" = "GDSC2 (find_circ)"),
             name = "PSet (Pipeline)") +
         theme_classic() + xlim(-x, x) +
         theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5),
@@ -272,7 +282,7 @@ to_keep <- toPlot[toPlot$FDR < 0.05,]$temp
 toPlot$to_label <- ifelse(toPlot$temp %in% to_keep, as.character(toPlot$Drug), "")
 
 # keep only associations with magnitude difference > 0.03
-toPlot[abs(toPlot$diff) < 0.03,]$to_label <- ""
+toPlot[abs(toPlot$diff) < 0.07,]$to_label <- ""
 
 # label by significance
 toPlot$Label <- ifelse(toPlot$FDR < 0.05, "FDR\nSignificant", "Not FDR\nSignificant")
@@ -283,7 +293,7 @@ toPlot$label <- factor(toPlot$label, levels = c("CIRI_gCSI", "CIRC_gCSI", "CFND_
 
 
 #png("../results/figures/figure9/myc/volcano.png", width = 6, height = 4, res = 600, units = "in")
-png("../results/figures/figure9/myc/myc_avg_volcano.png", width = 7, height = 5, res = 600, units = "in")
+png("../results/figures/figure9/myc/myc_avg_volcano_2.png", width = 7, height = 5, res = 600, units = "in")
 plot_volcano(toPlot)
 dev.off()
 
@@ -329,18 +339,18 @@ formatMYC <- function(drug_df, label) {
     return(df)
 }
 
-sig_drug <- rbind(formatMYC(gcsi_sen, "CIRI_gCSI"), formatMYC(ccle_sen, "CIRI_CCLE"), formatMYC(gdsc_sen, "CIRI_GDSC"),
-                  formatMYC(gcsi_sen, "CIRC_gCSI"), formatMYC(ccle_sen, "CIRC_CCLE"), formatMYC(gdsc_sen, "CIRC_GDSC"),
-                  formatMYC(gcsi_sen, "CFND_gCSI"), formatMYC(ccle_sen, "CFND_CCLE"), formatMYC(gdsc_sen, "CFND_GDSC"),
-                  formatMYC(gcsi_sen, "FCRC_gCSI"), formatMYC(ccle_sen, "FCRC_CCLE"), formatMYC(gdsc_sen, "FCRC_GDSC"))
+sig_drug <- rbind(formatMYC(gcsi_sen, "CIRI_gCSI"), formatMYC(ctrp_sen, "CIRI_CCLE"), formatMYC(gdsc_sen, "CIRI_GDSC"),
+                  formatMYC(gcsi_sen, "CIRC_gCSI"), formatMYC(ctrp_sen, "CIRC_CCLE"), formatMYC(gdsc_sen, "CIRC_GDSC"),
+                  formatMYC(gcsi_sen, "CFND_gCSI"), formatMYC(ctrp_sen, "CFND_CCLE"), formatMYC(gdsc_sen, "CFND_GDSC"),
+                  formatMYC(gcsi_sen, "FCRC_gCSI"), formatMYC(ctrp_sen, "FCRC_CCLE"), formatMYC(gdsc_sen, "FCRC_GDSC"))
 sig_drug$PSet <- gsub(".*_", "", sig_drug$Label)
-sig_drug$Pipeline <- rep(c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"), each = 36)
+sig_drug$Pipeline <- rep(c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"), each = nrow(sig_drug)/4)
 sig_drug$Pipeline <- factor(sig_drug$Pipeline, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 sig_drug$PSet <- factor(sig_drug$PSet, levels = c("gCSI", "CCLE", "GDSC"))
-
+sig_drug$Drug <- factor(sig_drug$Drug, levels = unique(rev(sig_drug$Drug[order(sig_drug$Drug)])))
 
 # plot overlapping biomarkers
-png("myc_overlap.png", width = 6, height = 7, res = 600, units = "in")
+png("../results/figures/figure9/myc/myc_overlap_2.png", width = 6, height = 7, res = 600, units = "in")
 ggplot(sig_drug, aes(x = PSet, y = Drug, fill = W)) +
   geom_tile() +
   geom_text(aes(label = Status), size = 2) +
