@@ -158,18 +158,18 @@ save(gdsc_bin_dr, file = paste0(dr_out, "gdsc_bin0.RData"))
 # Quantify (TO REMOVE)
 ############################################################
 
-load(paste0(dr_out, "gcsi.RData"))
-load(paste0(dr_out, "ccle.RData"))
-load(paste0(dr_out, "gdsc.RData"))
+load(paste0(dr_out, "gcsi_bin0.RData"))
+load(paste0(dr_out, "ccle_bin0.RData"))
+load(paste0(dr_out, "gdsc_bin0.RData"))
 
 # number of biomarker associations
 # gCSI: 5488
-# CCLE: 24600
+# CCLE: 73800
 # GDSC: 33507
 
 # number of biomarker associations with pval < 0.05
 # gCSI: 408
-# CCLE: 1161
+# CCLE: 3505
 # GDSC: 4930
 
 # number of biomarker associations with FDR < 0.05
@@ -260,10 +260,11 @@ plot_overlapping <- function(gcsi_pval, ccle_pval, gdsc_pval) {
 toPlot_bin <- plot_overlapping(gcsi_pval_b, ccle_pval_b, gdsc_pval_b)
 
 # plot overlapping biomarkers
-png("../results/figures/figure9/common_bin0_pval_biomarkers.png", width = 17, height = 5, res = 600, units = "in")
+png("../results/figures/figure9/common_bin0_pval_biomarkers.png", width = 14, height = 19, res = 600, units = "in")
 ggplot(toPlot_bin, aes(x = PSet, y = W, fill = pval)) + geom_bar(stat="identity", color = "black") +
-    facet_nested(~ factor(pair), scales = "free_x") +
+    facet_wrap(~ factor(pair), nrow = 10, scales = "free_x") +
     labs(fill = "P-Value", y = "Wilcoxon Rank Sum Test Statistic", x = "PSet") + 
+    scale_fill_gradient(low = '#2F446E', high = "#ABC2D3") +
     theme_classic() +
     theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5), axis.text.x = element_text(angle = 90, hjust = 1))
 dev.off()
@@ -353,6 +354,10 @@ ggplot(toPlot, aes(x = PSet, y = Pair, fill = W)) +
     theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5), legend.title = element_text(size = 9))
 dev.off()
 
+# get two overlapping associations
+tmp <- toPlot[toPlot$Status == "*",]$Pair
+to_label <- tmp[which(duplicated(tmp))]
+
 
 ############################################################
 # Volcano Plots
@@ -437,7 +442,7 @@ corr_pset <- function(pset1, pset2, type, filename) {
     toPlot <- na.omit(toPlot)
 
     # create pset labels
-    p1 <- str_split_1(filename, pattern = "_")[1]
+    p1 <- gsub("../results/figures/figure9/", "", str_split_1(filename, pattern = "_")[1])
     p2 <- str_split_1(filename, pattern = "_")[2]
 
     # create pvalue significance label
@@ -447,9 +452,7 @@ corr_pset <- function(pset1, pset2, type, filename) {
     toPlot$pval_sig <- factor(toPlot$pval_sig, levels = c("Both PSets", paste(p1, "Only"), paste(p2, "Only"), "Neither PSet"))
 
     # label overlapping associations
-    to_keep <- toPlot_bin[toPlot_bin$pval < 0.05,]
-    to_keep <- to_keep[duplicated(to_keep$pair),]$pair
-    toPlot$to_label <- ifelse(toPlot$pair %in% to_keep, gsub(".*_", "", toPlot$pair), "")
+    toPlot$to_label <- ifelse(toPlot$pair %in% to_label, gsub(".*_", "", toPlot$pair), "")
     toPlot$to_label <- ifelse(toPlot$pval_sig != "Both PSets", "", toPlot$to_label)
 
     # set palette for plotting
@@ -472,9 +475,9 @@ corr_pset <- function(pset1, pset2, type, filename) {
 
 
 # binarized dr
-gcsi_ccle_b <- corr_pset(gcsi_bin_dr, ccle_bin_dr, "bin", "gCSI_CCLE_bin0")
-gcsi_gdsc_b <- corr_pset(gcsi_bin_dr, gdsc_bin_dr, "bin", "gCSI_GDSC_bin0")
-ccle_gdsc_b <- corr_pset(ccle_bin_dr, gdsc_bin_dr, "bin", "CCLE_GDSC_bin0")
+gcsi_ccle_b <- corr_pset(gcsi_bin_dr, ccle_bin_dr, "bin", "../results/figures/figure9/gCSI_CCLE_bin0")
+gcsi_gdsc_b <- corr_pset(gcsi_bin_dr, gdsc_bin_dr, "bin", "../results/figures/figure9/gCSI_GDSC_bin0")
+ccle_gdsc_b <- corr_pset(ccle_bin_dr, gdsc_bin_dr, "bin", "../results/figures/figure9/CCLE_GDSC_bin0")
 
 
 ############################################################
@@ -493,7 +496,7 @@ plot_zeros <- function(bin, filename) {
     circs <- bin$Feature
     toPlot$Feature <- factor(toPlot$Feature, levels = unique(circs))
 
-    png(paste0("dist_zeros_", filename, ".png"), width = 4, height = 5, res = 600, units = "in")
+    png(paste0("../results/figures/figure9/dist_zeros_", filename, ".png"), width = 4, height = 5, res = 600, units = "in")
     print({ggplot(toPlot, aes(y = Feature, x = value, fill = variable)) + 
         geom_bar(position="dodge", stat="identity") +
         scale_fill_manual("Expression", values = c("#60A090", "#DDDDDD"), label = c(">0", "0")) +
