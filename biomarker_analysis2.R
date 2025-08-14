@@ -7,7 +7,6 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(ComplexHeatmap)
     library(ggh4x)
-    library(ggVennDiagram)
     library(stringr)
     library(reshape2)
     library(ggrepel)
@@ -77,7 +76,7 @@ binary_dr <- function(counts_df, drug_df) {
     # create data frame to hold results
     combinations <- expand.grid(Drug = rownames(drug_df), Feature = features)
     combinations$num_samples <- combinations$num_high <- combinations$diff <- combinations$pval <-  combinations$W <- NA
-    combinations$drug <- combinations$feature <- NA
+    #combinations$drug <- combinations$feature <- NA
     
     # initiate row count
     row = 1
@@ -115,8 +114,8 @@ binary_dr <- function(counts_df, drug_df) {
                 combinations$diff[row] <- AAC_diff
                 combinations$num_samples[row] <- nrow(subset)
                 combinations$num_high[row] <- length(high_exp)
-                combinations$feature[row] <- feature
-                combinations$drug[row] <- rownames(drug_df)[j]
+                #combinations$feature[row] <- feature
+                #combinations$drug[row] <- rownames(drug_df)[j]
 
             } else {
                 # save results
@@ -125,8 +124,8 @@ binary_dr <- function(counts_df, drug_df) {
                 combinations$diff[row] <- NA
                 combinations$num_samples[row] <- nrow(subset)
                 combinations$num_high[row] <- NA
-                combinations$feature[row] <- feature
-                combinations$drug[row] <- rownames(drug_df)[j]
+                #combinations$feature[row] <- feature
+                #combinations$drug[row] <- rownames(drug_df)[j]
             }
 
             row <- row + 1
@@ -142,7 +141,7 @@ binary_dr <- function(counts_df, drug_df) {
 }
 
 gcsi_bin_dr <- binary_dr(gcsi_df, gcsi_sen)
-ccle_bin_dr <- binary_dr(ccle_df, ccle_sen)
+ccle_bin_dr <- binary_dr(ccle_df, ctrp_sen)
 gdsc_bin_dr <- binary_dr(gdsc_df, gdsc_sen)
 
 
@@ -275,49 +274,83 @@ dev.off()
 # Stats of P-value Significant Biomarkers in other PSets
 ############################################################
 
-# function to create dataframe of p-value significant biomarkers
-get_biomarkers <- function(gcsi_pval, ccle_pval, gdsc_pval, gcsi_all, ccle_all, gdsc_all) {
+# save top 10 associations from each PSet
+gcsi_pval <- gcsi_pval_b[order(gcsi_pval_b$W, decreasing = T),][1:10,]
+ccle_pval <- ccle_pval_b[order(ccle_pval_b$W, decreasing = T),][1:10,]
+gdsc_pval <- gdsc_pval_b[order(gdsc_pval_b$W, decreasing = T),][1:10,]
 
-    # add pset labels
-    gcsi_all$PSet <- "gCSI"
-    ccle_all$PSet <- "CCLE"
-    gdsc_all$PSet <- "GDSC"
+pval_biomarkers <- unique(c(gcsi_pval$pair, ccle_pval$pair, gdsc_pval$pair))
 
-    # keep only top 10 associations from each P-Set
-    if (colnames(gcsi_pval)[3] == "W") {
-        gcsi_pval <- gcsi_pval[order(gcsi_pval$W, decreasing = T),][1:10,]
-        ccle_pval <- ccle_pval[order(ccle_pval$W, decreasing = T),][1:10,]
-        gdsc_pval <- gdsc_pval[order(gdsc_pval$W, decreasing = T),][1:10,]
-    } else {
-        gcsi_pval <- gcsi_pval[order(gcsi_pval$estimate, decreasing = T),][1:10,]
-        ccle_pval <- ccle_pval[order(ccle_pval$estimate, decreasing = T),][1:10,]
-        gdsc_pval <- gdsc_pval[order(gdsc_pval$estimate, decreasing = T),][1:10,]
+#gcsi_pval <- gcsi_pval_l[order(gcsi_pval_l$estimate, decreasing = T),][1:10,]
+#ccle_pval <- ccle_pval_l[order(ccle_pval_l$estimate, decreasing = T),][1:10,]
+#gdsc_pval <- gdsc_pval_l[order(gdsc_pval_l$estimate, decreasing = T),][1:10,]
+
+# function to create dataframe for plotting
+format_bin <- function(bin_df, counts_df, drug_df) {
+
+    # create dataframe for plotting
+    df <- data.frame(Feature = gsub(".*_", "", pval_biomarkers),
+                     Drug = gsub("_.*", "", pval_biomarkers), 
+                     Pair = pval_biomarkers,
+                     PSet = bin_df$PSet[1], 
+                     Status = NA, 
+                     W = NA)
+
+    # subset results
+    subset <- bin_df[bin_df$pair %in% pval_biomarkers,]
+
+    for (i in seq_along(df$Pair)) {
+        drug = df$Drug[i]
+        feature = df$Feature[i]
+        pair = df$Pair[i]
+
+        if (!drug %in% rownames(drug_df)) { # drug no in PSet
+            df$Status[i] <- ""
+        } else if (!feature %in% colnames(counts_df)) { # circRNA not detected
+            df$Status[i] <- "ND"
+        } else if (!pair %in% subset$pair) { # not enough for association
+            df$W[i] <- 0
+            df$Status[i] <- "NA"
+        } else {
+
+            df$W[i] <- subset[subset$pair == pair,]$W   # P-Val > 0.05
+            df$Status[i] <- ""
+
+            # check p-value and FDR
+            if (subset[subset$pair == pair,]$pval < 0.05) { #P-Val < 0.05
+                df$Status[i] <- "*"
+            }
+            if (subset[subset$pair == pair,]$FDR < 0.05) { #FDR < 0.05
+                df$Status[i] <- "**"
+            }
+        }
     }
-
-    pval_biomarkers <- unique(c(gcsi_pval$pair, ccle_pval$pair, gdsc_pval$pair))
-
-    # create dataframe of selected 30 associations
-    toPlot <- rbind(gcsi_all[gcsi_all$pair %in% pval_biomarkers,],
-                    ccle_all[ccle_all$pair %in% pval_biomarkers,],
-                    gdsc_all[gdsc_all$pair %in% pval_biomarkers,])
-
-    # keep order of circRNAs
-    toPlot$pair <- factor(toPlot$pair, levels = rev(pval_biomarkers))
-    toPlot$PSet <- factor(toPlot$PSet, levels = c("gCSI", "CCLE", "GDSC"))
-
-    return(toPlot)
+    return(df)
 }
 
-toPlot_bin <- get_biomarkers(gcsi_pval_b, ccle_pval_b, gdsc_pval_b, gcsi_bin_dr, ccle_bin_dr, gdsc_bin_dr)
+# add pset labels
+gcsi_bin_dr$PSet <- "gCSI"
+ccle_bin_dr$PSet <- "CCLE"
+gdsc_bin_dr$PSet <- "GDSC"
+
+toPlot <- rbind(format_bin(gcsi_bin_dr, gcsi_df, gcsi_sen), 
+                format_bin(ccle_bin_dr, ccle_df, ctrp_sen), 
+                format_bin(gdsc_bin_dr, gdsc_df, gdsc_sen))
+toPlot$Pair <- factor(toPlot$Pair, levels = rev(pval_biomarkers))
+toPlot$PSet <- factor(toPlot$PSet, levels = c("gCSI", "CCLE", "GDSC"))
+
 
 # plot overlapping biomarkers
-png("../results/figures/figure9/top10_bin0_pval_biomarkers.png", width = 7, height = 5, res = 600, units = "in")
-ggplot(toPlot_bin, aes(x = PSet, y = pair, fill = W)) + geom_tile() +
+png("../results/figures/figure9/top10_bin0_pval_biomarkers.png", width = 7.5, height = 5, res = 600, units = "in")
+ggplot(toPlot, aes(x = PSet, y = Pair, fill = W)) + 
+    geom_tile() +
     geom_hline(yintercept = c(10.5, 20.5), linetype = "dashed") +
-    geom_text(aes(label = ifelse(pval < 0.05, "*", ""))) +
+    #geom_text(aes(label = ifelse(pval < 0.05, "*", ""))) +
+    geom_text(aes(label = Status), size = 3) +
     labs(fill = "Wilcoxon Rank\nSum Test Statistic", y = "Drug-CircRNA Pair", x = "PSet") + 
-    theme_classic() + scale_fill_gradient2(low = 'white', mid = '#E1E7DF', high = '#878E76') +
-    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5))
+    theme_classic() + 
+    scale_fill_gradient2(low = 'white', mid = '#E1E7DF', high = '#878E76', na.value = "white") +
+    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5), legend.title = element_text(size = 9))
 dev.off()
 
 
