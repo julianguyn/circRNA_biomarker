@@ -124,6 +124,8 @@ compute_spearman <- function(
     # loop through for number of iterations
     for (i in 1:iter) {
     
+        if (i %% 100 == 0) {print(i)}
+
         if (random == TRUE) {
             # shuffle cell line names
             rownames(ciri_df) <- sample(rownames(ciri_df))
@@ -157,8 +159,8 @@ ribo0_stability <- compute_spearman(ciri_ribo0, cfnd_ribo0, fcrc_ribo0)
 save(polyA_stability, ribo0_stability, file = "../results/data/temp/circ_lung_stability.RData")
 
 # compute spearman correlations after random shuffling
-polyA_stability_random <- compute_spearman(ciri_polyA, circ_polyA, cfnd_polyA, fcrc_polyA, random = TRUE, iter = 100)
-ribo0_stability_random <- compute_spearman(ciri_ribo0, circ_ribo0, cfnd_ribo0, fcrc_ribo0, random = TRUE, iter = 100)
+polyA_stability_random <- compute_spearman(ciri_polyA, cfnd_polyA, fcrc_polyA, random = TRUE, iter = 1000)
+ribo0_stability_random <- compute_spearman(ciri_ribo0, cfnd_ribo0, fcrc_ribo0, random = TRUE, iter = 1000)
 
 save(polyA_stability_random, ribo0_stability_random, file = "../results/data/temp/circ_lung_stability_random.RData")
 
@@ -188,29 +190,16 @@ ribo0_stability_random <- format_df(ribo0_stability_random, "ribo0", "Random")
 ############################################################
 
 # merge nonrandom results for plotting
-toPlot <- rbind(polyA_stability, ribo0_stability)
-toPlot$label <- factor(toPlot$label, levels = c("polyA", "ribo0"))
-
-png("../results/figures/figure7/stability_nonrandom_lung.png", width=100, height=150, units='mm', res = 600, pointsize=80)
-ggplot(toPlot, aes(x = label, y = Stability)) + 
-    geom_violin(aes(fill = label), alpha = 0.8) + geom_boxplot(width=0.1, alpha = 0.3) +
-    facet_grid(factor(Pipeline)~.) +
-    theme_classic() + labs(x = "", fill = "", y = "Stability Index") +
-    scale_fill_manual(values = c("#23022E", "#611C35", "#839788", "#BFD7EA", "#BA9790", "#D5BC8A")) +
-    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.7, 'cm')) +
-    geom_hline(yintercept = 0, linetype = "dotted")
-dev.off()
-
-
-# merge random results for plotting
 toPlot <- rbind(polyA_stability, ribo0_stability, polyA_stability_random, ribo0_stability_random)
-#toPlot <- melt(toPlot)
-toPlot$label <- factor(toPlot$label, levels = c("polyA", "ribo0"))
+toPlot$label <- factor(toPlot$label, levels = c("polyA", "ribo0"), labels = c("PolyA", "Ribo0"))
 
-png("../results/figures/figure7/stability_random_lung.png", width=150, height=150, units='mm', res = 600, pointsize=80)
-ggplot(toPlot, aes(x = PSet, y = value, fill = random)) + 
-    geom_boxplot() + facet_grid(label~.) + theme_classic() + 
-    labs(x = "", fill = "", y = "Stability Index") + scale_fill_manual(values = c("#839788", "gray")) +
+png("../results/figures/figure7/stability_lung.png", width=100, height=150, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = label, y = Stability, fill = label)) + 
+    geom_boxplot(data = toPlot, aes(alpha = random)) + 
+    scale_fill_manual(values = c("#4CC5AB", "#392C57", "grey")) +
+    scale_alpha_manual(values = c(1, 0.2)) +
+    facet_grid(factor(Pipeline)~.) +
+    theme_classic() + labs(x = "", fill = "", y = "Stability Index", alpha = "Randomization") +
     theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.7, 'cm')) +
     geom_hline(yintercept = 0, linetype = "dotted")
 dev.off()
