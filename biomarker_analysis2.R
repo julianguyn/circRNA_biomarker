@@ -260,13 +260,13 @@ plot_overlapping <- function(gcsi_pval, ccle_pval, gdsc_pval) {
 toPlot_bin <- plot_overlapping(gcsi_pval_b, ccle_pval_b, gdsc_pval_b)
 
 # plot overlapping biomarkers
-png("../results/figures/figure9/common_bin0_pval_biomarkers.png", width = 14, height = 19, res = 600, units = "in")
+png("../results/figures/figure9/common_bin0_pval_biomarkers.png", width = 21, height = 13, res = 600, units = "in")
 ggplot(toPlot_bin, aes(x = PSet, y = W, fill = pval)) + geom_bar(stat="identity", color = "black") +
-    facet_wrap(~ factor(pair), nrow = 10, scales = "free_x") +
+    facet_wrap(~ factor(pair), nrow = 6, scales = "free_x") +
     labs(fill = "P-Value", y = "Wilcoxon Rank Sum Test Statistic", x = "PSet") + 
     scale_fill_gradient(low = '#2F446E', high = "#ABC2D3") +
     theme_classic() +
-    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5), axis.text.x = element_text(angle = 90, hjust = 1))
+    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5))
 dev.off()
 
 
