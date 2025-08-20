@@ -74,6 +74,17 @@ save(ciri_corr, circ_corr, cfnd_corr, fcrc_corr, gexpr_corr, isoform_corr,
 
 
 ############################################################
+# Compute average spearman correlations (Table 2)
+############################################################
+
+colMeans(gexpr_corr[,2:4])
+colMeans(isoform_corr[,2:4])
+colMeans(ciri_corr[,2:4], na.rm = TRUE)
+colMeans(circ_corr[,2:4], na.rm = TRUE)
+colMeans(cfnd_corr[,2:4], na.rm = TRUE)
+colMeans(fcrc_corr[,2:4], na.rm = TRUE)
+
+############################################################
 # Format corrleation matrices for plotting
 ############################################################
 
