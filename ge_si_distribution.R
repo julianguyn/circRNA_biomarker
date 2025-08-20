@@ -174,6 +174,37 @@ save(gene_stability_random, isof_stability_random,
      file = "../results/data/temp/gene_isoform_stability_random.RData")
 
 ############################################################
+# Compute average spearman correlations (Table 2)
+############################################################
+
+colMeans(ciri_stability[,1:3])
+colMeans(circ_stability[,1:3])
+colMeans(cfnd_stability[,1:3])
+colMeans(fcrc_stability[,1:3])
+
+colMeans(ciri_stability_random)
+colMeans(circ_stability_random)
+colMeans(cfnd_stability_random)
+colMeans(fcrc_stability_random)
+
+############################################################
+# Compute t-test (non-random > random) (Table 2)
+############################################################
+
+ttest_si <- function(nonrandom, random) {
+    nonrandom <- nonrandom[,1:3]
+    nonrandom <- c(nonrandom[,1], nonrandom[,2], nonrandom[,3])
+    random <- c(random[,1], random[,2], random[,3])
+
+    t.test(nonrandom, random, alternative = "greater")
+}
+
+ttest_si(ciri_stability, ciri_stability_random)
+ttest_si(circ_stability, circ_stability_random)
+ttest_si(cfnd_stability, cfnd_stability_random)
+ttest_si(fcrc_stability, fcrc_stability_random)
+
+############################################################
 # Format stability index matrices for plotting
 ############################################################
 
