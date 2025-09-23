@@ -103,6 +103,77 @@ plot_venn(all_comparison, pal2)
 dev.off()
 
 
+# ========== Proportion plots ========== #
+
+# function to count proportions
+count_prop <- function(transcripts, label) {
+    
+    gcsi <- transcripts$gCSI
+    ccle <- transcripts$CCLE
+    gdsc <- transcripts$GDSC2
+
+    # get all transcripts
+    all_transcripts <- unique(c(gcsi, ccle, gdsc))
+
+    # label transcript detection per dataset
+    transcript_df <- data.frame(
+        transcript = all_transcripts,
+        gcsi = all_transcripts %in% gcsi,
+        ccle = all_transcripts %in% ccle,
+        gdsc = all_transcripts %in% gdsc
+    )
+
+    # label transcript detection
+    transcript_df$category <- with(transcript_df, 
+        ifelse(gcsi & !ccle & !gdsc, "gCSI only",
+        ifelse(!gcsi & ccle & !gdsc, "CCLE only",
+        ifelse(!gcsi & !ccle & gdsc, "GDSC2 only",
+        ifelse(gcsi & ccle & !gdsc, "gCSI & CCLE",
+        ifelse(gcsi & !ccle & gdsc, "gCSI & GDSC2",
+        ifelse(!gcsi & ccle & gdsc, "CCLE & GDSC2",
+        "All datasets"))))))
+    )
+
+    # create dataframe for plotting
+    toPlot <- table(transcript_df$category) |> as.data.frame()
+    toPlot$Var1 <- factor(toPlot$Var1, levels = c("All datasets",
+                                                  "gCSI & CCLE",
+                                                  "gCSI & GDSC2",
+                                                  "CCLE & GDSC2",
+                                                  "gCSI only",
+                                                  "CCLE only",
+                                                  "GDSC2 only"))
+    toPlot$Prop <- round(toPlot$Freq / sum(toPlot$Freq) * 100, digits = 2)
+    toPlot$label <- paste0(toPlot$Freq, " (", toPlot$Prop, "%)")
+    toPlot$pipeline <- label
+
+    return(toPlot)
+}
+
+toPlot <- rbind(count_prop(ciri_transcripts, "CIRI2"),
+                count_prop(circ_transcripts, "CIRCexplorer2"),
+                count_prop(cfnd_transcripts, "circRNA_finder"),
+                count_prop(fcrc_transcripts, "find_circ"))
+toPlot$pipeline <- factor(toPlot$pipeline, 
+                          levels = c("CIRI2", "CIRCexplorer2", 
+                                     "circRNA_finder", "find_circ"))
+
+pal = c("#987A82", "#DACCAB", "#C78B76", "#9D3737", "#51C7AD", "#392C57", "#3670A0")
+
+# plot
+png("../results/figures/figure4/proportion_pipelines_ge.png", width=200, height=150, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(fill = Var1, y = Freq, x = pipeline)) + 
+  geom_bar(position = "fill", stat = "identity", color = "black") +
+  geom_text(aes(label = ifelse(Var1 %in% c("gCSI only",
+                                           "CCLE only",
+                                           "GDSC2 only"), label, "")), 
+            position = position_fill(vjust = 0.5)) +
+  theme_classic() + theme(legend.key.size = unit(0.5, 'cm')) +
+  scale_fill_manual(values = pal) +
+  labs(fill = "Category", x = "Pipeline", y = "Proportion of Unique Transcripts")
+dev.off()
+
+
 ############################################################
 # Figure 4: Upset plot of overlapping transcripts
 ############################################################
