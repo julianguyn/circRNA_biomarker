@@ -177,6 +177,21 @@ load(paste0(dr_out, "gdsc_bin0.RData"))
 # CCLE: 0
 # GDSC: 788
 
+# number of biomarker associations with FDR < 0.1
+# gCSI: 4
+# CCLE: 0
+# GDSC: 1441
+
+# number of biomarker associations with FDR < 0.15
+# gCSI: 9
+# CCLE: 0
+# GDSC: 2233
+
+# number of biomarker associations with FDR < 0.2
+# gCSI: 14
+# CCLE: 0
+# GDSC: 2946
+
 
 ############################################################
 # Subset for significant associations
@@ -189,7 +204,7 @@ subset_dr <- function(dr, type = "pval") {
         dr <- dr[which(dr$pval < 0.05),] 
         return(dr)
     } else {
-        dr <- dr[which(dr$FDR < 0.05),] 
+        dr <- dr[which(dr$FDR < 0.2),] 
         return(dr)
     }
 }
