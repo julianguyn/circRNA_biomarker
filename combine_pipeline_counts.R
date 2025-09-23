@@ -110,6 +110,47 @@ fcrc_ccle <- format_df(fcrc_ccle)
 
 
 ############################################################
+# Plot distribution of circRNA expression per pipeline
+############################################################
+
+# function to vectorize each dataframe
+vectorize <- function(df, pset, pipeline) {
+    values <- as.vector(as.matrix(df))
+    df <- data.frame(Exp = values, 
+                     PSet = rep(pset, length(values)),
+                     Pipeline = rep(pipeline, length(values)))
+    return(df)
+}
+
+toPlot <- rbind(vectorize(ciri_gcsi, "gCSI", "CIRI2"),
+                vectorize(ciri_gdsc, "GDSC2", "CIRI2"),
+                vectorize(ciri_ccle, "CCLE", "CIRI2"),
+                vectorize(circ_gcsi, "gCSI", "CIRCexplorer2"),
+                vectorize(circ_gdsc, "GDSC2", "CIRCexplorer2"),
+                vectorize(circ_ccle, "CCLE", "CIRCexplorer2"),
+                vectorize(cfnd_gcsi, "gCSI", "circRNA_finder"),
+                vectorize(cfnd_gdsc, "GDSC2", "circRNA_finder"),
+                vectorize(cfnd_ccle, "CCLE", "circRNA_finder"),
+                vectorize(fcrc_gcsi, "gCSI", "find_circ"),
+                vectorize(fcrc_gdsc, "GDSC2", "find_circ"),
+                vectorize(fcrc_ccle, "CCLE", "find_circ"))
+
+png("../results/figures/figure6/exp_distribution.png", width=150, height=75, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = PSet, y = Exp, fill = Pipeline)) + 
+    geom_violin(trim = FALSE, scale = "width", adjust = 1.0) +
+    theme_classic()
+dev.off()
+
+png("../results/figures/figure6/exp_distribution_log10.png", width=150, height=75, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = PSet, y = Exp, fill = Pipeline)) + 
+    geom_violin(trim = FALSE, scale = "width", adjust = 1.0) +
+    scale_y_log10() +
+    theme_classic()
+dev.off()
+
+
+
+############################################################
 # Count distribution of 0 exp across cell lines
 ############################################################
 
