@@ -261,6 +261,7 @@ circ_res <- format_features(circ_features)
 cfnd_res <- format_features(cfnd_features)
 fcrc_res <- format_features(fcrc_features)
 
+save(gene_res, transcript_res, ciri_res, circ_res, cfnd_res, fcrc_res, file = "../results/data/processed_feature_influence.RData")
 
 
 ############################################################
@@ -271,7 +272,7 @@ plot_features <- function(res) {
 
   p <- ggplot(data = res, aes(x=factor, y=difference, fill = dataset)) + 
   geom_bar(stat="identity", color="black", position=position_dodge()) +
-  geom_errorbar(aes(ymin=difference-sd, ymax=difference+sd), width=.2, position=position_dodge(.9)) +
+  #geom_errorbar(aes(ymin=difference-sd, ymax=difference+sd), width=.2, position=position_dodge(.9)) +
   ylab(expression('MSE - MSE'['permuted'])) + xlab("\nFeature") + 
   scale_fill_manual(guide = guide_legend(reverse = FALSE, title = "Dataset"), labels=c("gCSI/CCLE","gCSI/GDSC","GDSC/CCLE"), values = c("#392C57", "#51C7AD", "#3670A0")) + 
   scale_x_discrete(limits = c('Median Expression', 'GC%', 'Number of Exons', 'Length'),
@@ -312,3 +313,7 @@ dev.off()
 png("../results/figures/figure8/fcrc_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
 plot_features(fcrc_res)
 dev.off()
+
+############################################################
+# Compile lm results
+############################################################
