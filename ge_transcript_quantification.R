@@ -144,7 +144,7 @@ count_prop <- function(transcripts, label) {
                                                   "CCLE only",
                                                   "GDSC2 only"))
     toPlot$Prop <- round(toPlot$Freq / sum(toPlot$Freq) * 100, digits = 2)
-    toPlot$label <- paste0(toPlot$Freq, " (", toPlot$Prop, "%)")
+    toPlot$label <- paste0(toPlot$Freq, "\n(", toPlot$Prop, "%)")
     toPlot$pipeline <- label
 
     return(toPlot)
@@ -161,13 +161,13 @@ toPlot$pipeline <- factor(toPlot$pipeline,
 pal = c("#987A82", "#DACCAB", "#C78B76", "#9D3737", "#51C7AD", "#392C57", "#3670A0")
 
 # plot
-png("../results/figures/figure4/proportion_pipelines_ge.png", width=200, height=150, units='mm', res = 600, pointsize=80)
+png("../results/figures/figure4/proportion_pipelines_ge.png", width=160, height=150, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(fill = Var1, y = Freq, x = pipeline)) + 
   geom_bar(position = "fill", stat = "identity", color = "black") +
-  geom_text(aes(label = ifelse(Var1 %in% c("gCSI only",
-                                           "CCLE only",
-                                           "GDSC2 only"), label, "")), 
-            position = position_fill(vjust = 0.5)) +
+  #geom_text(aes(label = ifelse(Var1 %in% c("gCSI only",
+  #                                         "CCLE only",
+  #                                         "GDSC2 only"), label, "")), 
+  #          position = position_fill(vjust = 0.5)) +
   theme_classic() + theme(legend.key.size = unit(0.5, 'cm')) +
   scale_fill_manual(values = pal) +
   labs(fill = "Category", x = "Pipeline", y = "Proportion of Unique Transcripts")
