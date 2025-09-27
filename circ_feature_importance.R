@@ -19,7 +19,7 @@ set.seed(200)
 ############################################################
 
 # load circRNA expression data (subsetted in si_distribution.R)
-load("../results/data/temp/circ_stability_subsetdf.RData")
+load("../results/data/temp/circ_stability_subsetdf2.RData")
 
 
 ############################################################
@@ -193,13 +193,13 @@ fcrc_ccle_ft <- circToGene(fcrc_ccle_gr, fcrc_ccle_ft)
 ############################################################
 
 save(ciri_gcsi_ft, circ_gcsi_ft, cfnd_gcsi_ft, fcrc_gcsi_ft, 
-     file = "../results/data/circ_stability_gcsi_features.RData")
+     file = "../results/data/circ_stability_gcsi_features2.RData")
 
 save(ciri_ccle_ft, circ_ccle_ft, cfnd_ccle_ft, fcrc_ccle_ft,
-     file = "../results/data/circ_stability_ccle_features.RData")
+     file = "../results/data/circ_stability_ccle_features2.RData")
 
 save(ciri_gdsc_ft, circ_gdsc_ft, cfnd_gdsc_ft, fcrc_gdsc_ft,
-     file = "../results/data/circ_stability_gdsc_features.RData")
+     file = "../results/data/circ_stability_gdsc_features2.RData")
 
 
 # Miscellaneous
@@ -210,10 +210,3 @@ save(ciri_gdsc_ft, circ_gdsc_ft, cfnd_gdsc_ft, fcrc_gdsc_ft,
 
 #txdb <- loadDb("TxDb.GENCODE.v45.sqlite")
 #exons <- exonsBy(txdb, by = "gene")
-
-
-############################################################
-# Load in circRNA stability and features
-############################################################
-
-load("../results/data/temp/circ_stability.RData")
