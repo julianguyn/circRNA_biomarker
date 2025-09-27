@@ -82,10 +82,10 @@ circ_common <- get_common(circ_gcsi, circ_ccle, circ_gdsc)
 cfnd_common <- get_common(cfnd_gcsi, cfnd_ccle, cfnd_gdsc)
 fcrc_common <- get_common(fcrc_gcsi, fcrc_ccle, fcrc_gdsc)
 
-print(length(ciri_common)) #31
-print(length(circ_common)) #67
-print(length(cfnd_common)) #85
-print(length(fcrc_common)) #504
+print(length(ciri_common)) #138
+print(length(circ_common)) #206
+print(length(cfnd_common)) #607
+print(length(fcrc_common)) #1569
 
 
 ############################################################
@@ -128,14 +128,35 @@ save(ciri_gcsi, ciri_ccle, ciri_gdsc, circ_gcsi, circ_ccle, circ_gdsc,
 # Compute pairwise spearman correlations
 ############################################################
 
+# helper function to compute pairwise spearman correlations
+pairwise_spearman <- function(pset1, pset2, label) {
+
+    # get common transcripts
+    common <- intersect(colnames(pset1), colnames(pset2))
+
+    # initialize dataframe to store results
+    correlations <- data.frame(transcript = common, si = NA)
+
+    # keep common transcripts
+    pset1 <- pset1[,which(colnames(pset1) %in% common)]
+    pset2 <- pset2[,which(colnames(pset2) %in% common)]
+
+    for (i in 1:length(common)) {
+        # compute spearman
+        sp <- suppressWarnings(cor(x = as.numeric(pset1[, i]), y = as.numeric(pset2[, i]), method = "spearman"))
+        correlations$si[i] <- sp
+    }
+    correlations$pair <- label
+    return(correlations)
+}
+
 # function to compute pairwise spearman correlations
 compute_spearman <- function(
     gcsi_df, ccle_df, gdsc_df,      # PSet-specific dataframes from the subset_df() function
     random = FALSE,                 # random: TRUE for random sampling of sample names, FALSE otherwise
     iter = 1                        # iter: number of iterations (for random sampling)
 ) {
-    # initialize dataframe to store results
-    correlations <- data.frame(matrix(nrow=0, ncol=3))
+
     for (i in 1:iter) {
 
         if (random == TRUE) {
@@ -148,18 +169,16 @@ compute_spearman <- function(
             ccle_df <- ccle_df[order(rownames(ccle_df)),]
             gdsc_df <- gdsc_df[order(rownames(gdsc_df)),]
         }
+
+        # compute correlations of transcript expression for pairs of psets
+        gcsi_ccle_spearman <- pairwise_spearman(gcsi_df, ccle_df, "gCSI/CCLE") 
+        gcsi_gdsc_spearman <- pairwise_spearman(gcsi_df, gdsc_df, "gCSI/GDSC2") 
+        gdsc_ccle_spearman <- pairwise_spearman(gdsc_df, ccle_df, "GDSC2/CCLE")
         
-        # loop through each common transcript
-        for (i in 1:ncol(gcsi_df)) {
-            # compute correlations of transcript expression for pairs of psets
-            gcsi_ccle_spearman <- suppressWarnings(cor(x = as.numeric(gcsi_df[, i]), y = as.numeric(ccle_df[, i]), method = "spearman")) #gCSI vs CCLE
-            gcsi_gdsc_spearman <- suppressWarnings(cor(x = as.numeric(gcsi_df[, i]), y = as.numeric(gdsc_df[, i]), method = "spearman")) #gCSI vs GDSC
-            gdsc_ccle_spearman <- suppressWarnings(cor(x = as.numeric(gdsc_df[, i]), y = as.numeric(ccle_df[, i]), method = "spearman")) #GDSC vs CCLE
-            # combine results
-            correlations <- rbind(correlations, c(gcsi_ccle_spearman, gcsi_gdsc_spearman, gdsc_ccle_spearman))
-        }
+        # combine results
+        correlations <- rbind(gcsi_ccle_spearman, gcsi_gdsc_spearman, gdsc_ccle_spearman)
+        
     }
-    colnames(correlations) <- c("gCSI/CCLE", "gCSI/GDSC2", "GDSC2/CCLE")
     return(correlations)
 }
 
