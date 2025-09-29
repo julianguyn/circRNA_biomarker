@@ -147,63 +147,14 @@ toPlot <- rbind(vectorize(ciri_gcsi, "gCSI", "CIRI2"),
 png("../results/figures/figure6/exp_distribution.png", width=150, height=75, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = PSet, y = Exp, fill = Pipeline)) + 
     geom_violin(trim = FALSE, scale = "width", adjust = 1.0) +
-    theme_classic()
+    theme_classic() + theme(legend.key.size = unit(0.5, 'cm'))
 dev.off()
 
 png("../results/figures/figure6/exp_distribution_log10.png", width=150, height=75, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = PSet, y = Exp, fill = Pipeline)) + 
     geom_violin(trim = FALSE, scale = "width", adjust = 1.0) +
     scale_y_log10() +
-    theme_classic()
-dev.off()
-
-############################################################
-# Format dataframes for plotting
-############################################################
-
-print("Plotting distribution of zeros")
-
-# function to combine df from each pset for per pipeline
-merge_psets <- function(gcsi_df, ccle_df, gdsc_df, label) {
-
-    gcsi_df$PSet <- "gCSI"
-    ccle_df$PSet <- "CCLE"
-    gdsc_df$PSet <- "GDSC"
-    toPlot <- rbind(gcsi_df, ccle_df, gdsc_df)
-    toPlot$PSet <- factor(toPlot$PSet, levels = c("gCSI", "CCLE", "GDSC"))
-    toPlot$label <- label
-    toPlot <- toPlot[toPlot$variable == "Proportion",]
-
-    return(toPlot)
-
-}
-
-toPlot <- rbind(merge_psets(ciri_gcsi_cz, ciri_ccle_cz, ciri_gdsc_cz, "CIRI2"),
-                merge_psets(circ_gcsi_cz, circ_ccle_cz, circ_gdsc_cz, "CIRCexplorer2"),
-                merge_psets(cfnd_gcsi_cz, cfnd_ccle_cz, cfnd_gdsc_cz, "circRNA_finder"),
-                merge_psets(fcrc_gcsi_cz, fcrc_ccle_cz, fcrc_gdsc_cz, "find_circ"))
-
-toPlot$label <- factor(toPlot$label, levels = c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
-
-
-############################################################
-# Plot distribution of zeros
-############################################################
-
-# set palette for plotting
-pal = c("#839788", "#BFD7EA", "#BA9790", "#D5BC8A")
-
-png(paste0("../results/figures/figure6/dist_zeros_", out, ".png"), width=150, height=75, units='mm', res = 600, pointsize=80)
-ggplot(toPlot, aes(x = value, y = label)) + 
-    geom_violin(aes(fill = label, alpha = PSet), 
-                    scale = "width", width = 1.1, 
-                    position = position_dodge(width = 0.8)) + 
-    theme_classic() + xlim(0, 100) +
-    labs(x = "Proportion Zero Expression in Cell Lines", fill = "", alpha = "", y = "") +
-    scale_fill_manual(values = pal) + 
-    scale_alpha_manual(values = c(0.2, 0.5, 0.9)) +
-    scale_y_discrete(limits = c("find_circ", "circRNA_finder", "CIRCexplorer2", "CIRI2")) + 
-    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.5, 'cm')) 
+    theme_classic() + theme(legend.key.size = unit(0.5, 'cm'))
 dev.off()
 
 
@@ -275,14 +226,14 @@ toPlot <- rbind(vectorize(ciri_gcsi, "gCSI", "CIRI2"),
 png("../results/figures/figure6/exp_distribution_afternorm.png", width=150, height=75, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = PSet, y = Exp, fill = Pipeline)) + 
     geom_violin(trim = FALSE, scale = "width", adjust = 1.0) +
-    theme_classic()
+    theme_classic() + theme(legend.key.size = unit(0.5, 'cm'))
 dev.off()
 
 png("../results/figures/figure6/exp_distribution_log10_afternorm.png", width=150, height=75, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = PSet, y = Exp, fill = Pipeline)) + 
     geom_violin(trim = FALSE, scale = "width", adjust = 1.0) +
     scale_y_log10() +
-    theme_classic()
+    theme_classic() + theme(legend.key.size = unit(0.5, 'cm'))
 dev.off()
 
 
