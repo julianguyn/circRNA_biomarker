@@ -17,12 +17,12 @@ set.seed(200)
 
 # load in stability data
 load("../results/data/temp/gene_isoform_stability.RData")
-load("../results/data/temp/circ_stability.RData")
+load("../results/data/temp/circ_stability2.RData")
 
 # load in circRNA features
-load("../results/data/circ_stability_gcsi_features.RData")
-load("../results/data/circ_stability_ccle_features.RData")
-load("../results/data/circ_stability_gdsc_features.RData")
+load("../results/data/circ_stability_gcsi_features2.RData")
+load("../results/data/circ_stability_ccle_features2.RData")
+load("../results/data/circ_stability_gdsc_features2.RData")
 
 
 ############################################################
@@ -31,13 +31,39 @@ load("../results/data/circ_stability_gdsc_features.RData")
 
 # function to format circRNA stability dataframes
 c_stability <- function(stability, gcsi, ccle, gdsc) {
-  colnames(stability) <- c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman", "circ_id")
-  stability$gcsi_median <- gcsi$MedianExp
-  stability$ccle_median <- ccle$MedianExp
-  stability$gdsc_median <- gdsc$MedianExp
-  stability$gc <- gcsi$GC
-  stability$n_exon <- gcsi$NExons
-  stability$length <- gcsi$Length
+
+  # reformat stability dataframe
+  stability <- reshape2::dcast(stability, transcript ~ pair, value.var = "si")
+  colnames(stability) <- c("transcript", "gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")
+  
+  # get median expression
+  stability$gcsi_median <- stability$ccle_median <- stability$gdsc_median <- 0
+  for (i in seq_along(stability$transcript)) {
+    transcript <- stability$transcript[i]
+
+    if (transcript %in% rownames(gcsi)) {
+      stability$gcsi_median[i] <- gcsi$MedianExp[rownames(gcsi) == transcript]
+    }
+    if (transcript %in% rownames(ccle)) {
+      stability$ccle_median[i] <- ccle$MedianExp[rownames(ccle) == transcript]
+    }
+    if (transcript %in% rownames(gdsc)) {
+      stability$gdsc_median[i] <- gdsc$MedianExp[rownames(gdsc) == transcript]
+    }
+  }
+
+  # get GC, nexons, and length
+  feats <- data.frame(transcript = c(rownames(gcsi), rownames(ccle), rownames(gdsc)),
+                      gc = c(gcsi$GC, ccle$GC, gdsc$GC),
+                      nexons = c(gcsi$NExons, ccle$NExons, gdsc$NExons),
+                      length = c(gcsi$Length, ccle$Length, gdsc$Length))
+  feats <- unique(feats)
+  feats <- feats[match(stability$transcript, feats$transcript),]
+  
+  stability$gc <- feats$gc
+  stability$n_exon <- feats$nexons
+  stability$length <- feats$length
+
   return(stability)
 } 
 
@@ -46,6 +72,11 @@ circ_stability <- c_stability(circ_stability, circ_gcsi_ft, circ_ccle_ft, circ_g
 cfnd_stability <- c_stability(cfnd_stability, cfnd_gcsi_ft, cfnd_ccle_ft, cfnd_gdsc_ft)
 fcrc_stability <- c_stability(fcrc_stability, fcrc_gcsi_ft, fcrc_ccle_ft, fcrc_gdsc_ft)
 
+# save files
+write.csv(ciri_stability, file = "../results/data/temp/ciri_stability.csv", quote = F, row.names = F)
+write.csv(circ_stability, file = "../results/data/temp/circ_stability.csv", quote = F, row.names = F)
+write.csv(cfnd_stability, file = "../results/data/temp/cfnd_stability.csv", quote = F, row.names = F)
+write.csv(fcrc_stability, file = "../results/data/temp/fcrc_stability.csv", quote = F, row.names = F)
 
 ############################################################
 # Specify quantile based on Kuncheva Index
@@ -86,7 +117,7 @@ stability_pair <- function(stability, pair, kuncheva) {
   # subset based on kuncheva index
   stable <- stable[1:(kuncheva*n),]
   unstable <- unstable[1:(kuncheva*n),]
-  stability <- rbind(stable,unstable)
+  #stability <- rbind(stable,unstable) # remove hte filtering by kuncheva
 
   # shuffle data
   stability <- stability[sample(1:nrow(stability)),]
@@ -268,13 +299,15 @@ save(gene_res, transcript_res, ciri_res, circ_res, cfnd_res, fcrc_res, file = ".
 # Plot feature influence
 ############################################################
 
+pal = c("#DACCAB", "#C78B76", "#9D3737")
+
 plot_features <- function(res) {
 
   p <- ggplot(data = res, aes(x=factor, y=difference, fill = dataset)) + 
   geom_bar(stat="identity", color="black", position=position_dodge()) +
-  #geom_errorbar(aes(ymin=difference-sd, ymax=difference+sd), width=.2, position=position_dodge(.9)) +
+  geom_errorbar(aes(ymin=difference-sd, ymax=difference+sd), width=.2, position=position_dodge(.9)) +
   ylab(expression('MSE - MSE'['permuted'])) + xlab("\nFeature") + 
-  scale_fill_manual(guide = guide_legend(reverse = FALSE, title = "Dataset"), labels=c("gCSI/CCLE","gCSI/GDSC","GDSC/CCLE"), values = c("#392C57", "#51C7AD", "#3670A0")) + 
+  scale_fill_manual(guide = guide_legend(reverse = FALSE, title = "Dataset"), labels=c("gCSI/CCLE","gCSI/GDSC","GDSC/CCLE"), values = pal) + 
   scale_x_discrete(limits = c('Median Expression', 'GC%', 'Number of Exons', 'Length'),
                    labels=c('Median\nExpression', 'GC%', 'Number\nof Exons', 'Length')) + 
   theme_classic() + #scale_y_continuous(limits = c(0, 0.032), expand=c(0,0)) +
