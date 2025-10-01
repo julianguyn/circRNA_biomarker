@@ -202,6 +202,53 @@ feature_df$label <- factor(feature_df$label,
 
 
 ############################################################
+# Format and save model results
+############################################################
+
+# function to compile results
+compile_res <- function(model) {
+  
+  df <- model_df[model_df$Model == model, -c(5:6)]
+  df$cat <- paste(df$label, df$pair, sep = "-")
+  
+  # get average and max
+  res <- df %>%
+    group_by(cat) %>%
+    summarise(
+      avg_spearman = mean(Spearman, na.rm = TRUE),
+      sd_spearman  = sd(Spearman, na.rm = TRUE),
+      avg_pearson  = mean(Pearson, na.rm = TRUE),
+      sd_pearson   = sd(Pearson, na.rm = TRUE),
+      max_spearman = Spearman[which.max(abs(Spearman))],
+      max_pearson  = Pearson[which.max(abs(Pearson))],
+      .groups = "drop"
+    )
+  
+  # format results
+  res$label <- gsub("-.*", "", res$cat)
+  res$pair <- gsub(".*-", "", res$cat)
+  res$label <- factor(res$label, levels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+  res$pair <- factor(res$pair, levels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE"))
+
+  res <- res[order(res$label, res$pair),] |> as.data.frame()
+
+  # transpose
+  rownames(res) <- res$cat
+  res <- t(res[,-c(1, 6, 7)]) |> as.data.frame()
+
+  return(res)
+}
+
+# compile results
+lm_compile <- compile_res("Linear")
+ls_compile <- compile_res("LASSO")
+
+# write results
+write.csv(lm_compile, file = "results/data/feature_influence/multivariable/lm.csv", quote = F, row.names = T)
+write.csv(ls_compile, file = "results/data/feature_influence/multivariable/LASSO.csv", quote = F, row.names = T)
+
+
+############################################################
 # Plot model results from linear model
 ############################################################
 
