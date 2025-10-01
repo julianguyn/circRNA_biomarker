@@ -6,6 +6,7 @@ suppressPackageStartupMessages({
     library(ggpubr)
     library(dplyr)
     library(tidyverse)
+    library(ggh4x)
 })
 
 set.seed(200)  
@@ -131,7 +132,7 @@ load_pair <- function(path, pair, filetype) {
 # function to load in results
 load_model <- function(label, filetype) {
 
-  path = paste0("results/data/feature_influence/", label)
+  path = paste0("results/data/feature_influence/multivariable/", label)
 
   # process model files
   if (filetype == "model") {
@@ -271,3 +272,204 @@ plot_feature("Linear")
 plot_feature("Linear", "free_y")
 plot_feature("LASSO")
 plot_feature("LASSO", "free_y")
+
+
+############################################################
+# FROM HERE: RUN IndivFeatureInfluence.ipynb
+############################################################
+
+
+############################################################
+# Define function to load in univariable model results
+############################################################
+
+# helper function to format each dataset pair result
+load_pair <- function(path, pair, filetype) {
+
+  features <- c("gc", "n_exon", "length")
+
+  # get median
+  median <- c("gcsi_ccle" = "gdsc_median", 
+              "gcsi_gdsc" = "ccle_median",
+              "gdsc_ccle" = "gcsi_median")
+  features <- c(median[gsub("/", "", pair)], features)
+
+  # process model datafile
+  if (filetype == "model") {
+
+    # create dataframe to store results
+    res <- data.frame(matrix(nrow = 0, ncol = 6))
+    
+    # loop through each feature
+    for (feat in features) {
+      
+      # load in data files
+      df <- read.csv(paste0(path, pair, feat, "_lm.csv"))
+
+      # remove brackets from Pearson
+      df$Pearson <- gsub("\\[", "", gsub("]", "", df$Pearson)) |> as.numeric()
+
+      # add labels
+      df$pair <- gsub("/", "", pair)
+      df$feature <- feat
+      df$feature[df$feature %in% c("gdsc_median", "ccle_median", "gcsi_median")] <- "median"
+
+      res <- rbind(res, df)
+    }
+  }
+
+  # process feature datafile
+  if (filetype == "features") {
+
+    # create dataframe to store results
+    res <- data.frame(matrix(nrow = 0, ncol = 3))
+
+    # loop through each feature
+    for (feat in features) {
+
+      # load in data files
+      df <- read.csv(paste0(path, pair, feat, "_lm_features.csv"))
+      df$pair <- gsub("/", "", pair)
+
+      # rename median
+      df$Peak[df$Peak %in% c("gdsc_median", "ccle_median", "gcsi_median")] <- "median"
+      colnames(df)[1] <- "Feature"
+
+      res <- rbind(res, df)
+
+    }
+  }
+  return(res)
+}
+
+# function to load in results
+load_model <- function(label, filetype) {
+
+  path = paste0("results/data/feature_influence/univariable/", label)
+
+  # process model files
+  if (filetype == "model") {
+    df <- rbind(
+      load_pair(path, "/gcsi_ccle/", "model"),
+      load_pair(path, "/gcsi_gdsc/", "model"),
+      load_pair(path, "/gdsc_ccle/", "model")
+    )
+  }
+  # process feature files
+  if (filetype == "features") {
+    df <- rbind(
+      load_pair(path, "/gcsi_ccle/", "features"),
+      load_pair(path, "/gcsi_gdsc/", "features"),
+      load_pair(path, "/gdsc_ccle/", "features")
+    )
+  }
+  df$label <- label
+  return(df)
+}
+
+
+############################################################
+# Load in univariable results
+############################################################
+
+# set up palette for plotting
+pal = c("#DACCAB", "#C78B76", "#9D3737")
+
+# set up model results
+model_df <- rbind(
+  load_model("Gene_Expression", "model"),
+  load_model("Isoform_Expression", "model"),
+  load_model("CIRI2", "model"),
+  load_model("CIRCexplorer2", "model"),
+  load_model("circRNA_finder", "model"),
+  load_model("find_circ", "model")
+)
+
+# format model dataframe
+model_df$Fold <- factor(model_df$Fold, levels = c(1, 2, 3, 4, 5))
+model_df$pair <- factor(model_df$pair, 
+  levels = c("gcsi_ccle", "gcsi_gdsc", "gdsc_ccle"),
+  labels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE"))
+model_df$label <- factor(model_df$label, 
+  levels = c("Gene_Expression", "Isoform_Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"),
+  labels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+model_df$feature <- factor(model_df$feature, 
+  levels = c("median", "gc", "n_exon", "length"),
+  labels = c("Median Exp", "GC%", "No. Exons", "Length"))
+
+# set up feature results
+feature_df <- rbind(
+  load_model("Gene_Expression", "features"),
+  load_model("Isoform_Expression", "features"),
+  load_model("CIRI2", "features"),
+  load_model("CIRCexplorer2", "features"),
+  load_model("circRNA_finder", "features"),
+  load_model("find_circ", "features")
+)
+
+# format feature dataframe
+feature_df$Feature <- factor(feature_df$Feature, 
+  levels = c("median", "gc", "n_exon", "length"),
+  labels = c("Median Exp", "GC%", "No. Exons", "Length"))
+feature_df$label <- factor(feature_df$label, 
+  levels = c("Gene_Expression", "Isoform_Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"),
+  labels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+
+
+############################################################
+# Plot model results from linear model
+############################################################
+
+# function to plot model correlations
+plot_model <- function(corr) {
+
+  p <- ggplot(model_df, aes(x = pair, y = .data[[corr]], fill = pair)) + 
+    geom_bar(stat="identity", color="black", position=position_dodge()) +
+    scale_fill_manual(values = pal) +
+    facet_nested(~ factor(label) + factor(feature), scales = "free_x") +
+    geom_hline(yintercept = 0) +
+    theme_classic() +
+    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+          legend.key.size = unit(0.5, 'cm'),
+          axis.text.x = element_text(angle = 90, hjust = 0.1)) +
+    labs(fill = "Dataset Pair", x = "Dataset Pair") 
+
+  png(paste0("results/figures/univariable_", corr, "_", scales, "_scales.png"), width=12, height=5, units='in', res = 600, pointsize=80)
+  print({p})
+  dev.off()
+}
+
+# plot model correlations
+plot_model("Spearman")
+plot_model("Pearson")
+
+
+############################################################
+# Plot feature results from linear model
+############################################################
+
+# function to plot feature weights
+plot_feature <- function(scales = "fixed") {
+
+  p <- ggplot(feature_df, aes(x = Feature, y = Weight, fill = pair)) + 
+    geom_bar(stat="identity", color="black", position=position_dodge()) +
+    scale_fill_manual(values = pal, 
+                      labels = c("gcsi_ccle" = "gCSI/CCLE",
+                                "gcsi_gdsc" = "gCSI/GDSC",
+                                "gdsc_ccle" = "GDSC/CCLE")) +
+    facet_wrap(.~label, nrow = 1, scales = scales) +
+    geom_hline(yintercept = 0) +
+    theme_classic() +
+    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+          legend.key.size = unit(0.5, 'cm'),
+          axis.text.x = element_text(angle = 90, hjust = 0.1)) +
+    labs(fill = "Dataset Pair") 
+
+  png(paste0("results/figures/univariable_features_", scales, "_scales.png"), width=11, height=5, units='in', res = 600, pointsize=80)
+  print({p})
+  dev.off()
+}
+
+# plot feature weights
+plot_feature()
+plot_feature("free_y")
