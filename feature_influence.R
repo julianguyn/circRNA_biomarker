@@ -7,6 +7,7 @@ suppressPackageStartupMessages({
     library(dplyr)
     library(tidyverse)
     library(ggh4x)
+    library(RColorBrewer)
 })
 
 set.seed(200)  
@@ -347,35 +348,49 @@ plot_model(ls_compile, "LASSO", "Pearson", "free_y")
 ############################################################
 
 # function to plot feature weights
-plot_feature <- function(model, scales = "fixed") {
+plot_feature <- function(model, label) {
 
+  # subset to model and feature of interest
   toPlot <- feature_df[feature_df$model == model,]
+  toPlot <- toPlot[toPlot$label == label,]
 
-  p <- ggplot(toPlot, aes(x = Feature, y = Weight, fill = pair)) + 
-    geom_bar(stat="identity", color="black", position=position_dodge()) +
-    scale_fill_manual(values = pal, 
-                      labels = c("gcsi_ccle" = "gCSI/CCLE",
-                                "gcsi_gdsc" = "gCSI/GDSC",
-                                "gdsc_ccle" = "GDSC/CCLE")) +
-    facet_wrap(.~label, nrow = 1, scales = scales) +
-    geom_hline(yintercept = 0) +
-    theme_classic() +
-    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-          legend.key.size = unit(0.5, 'cm'),
-          axis.text.x = element_text(angle = 90, hjust = 0.1)) +
-    labs(fill = "Dataset Pair") 
+  # format dataframe for plotting
+  toPlot$Feature <- factor(toPlot$Feature, levels = c("Length", "No. Exons", "GC%", "Median Exp"))
+  toPlot$pair <- factor(toPlot$pair, 
+                        levels = c("gcsi_ccle", "gcsi_gdsc", "gdsc_ccle"),
+                        labels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE"))
 
-  png(paste0("results/figures/", model, "_features_", scales, "_scales.png"), width=11, height=5, units='in', res = 600, pointsize=80)
+  p <- ggplot(toPlot, aes(x = pair, y = Feature, fill = Weight)) + 
+    geom_tile(color = "black") +
+    geom_text(aes(label = round(Weight, 4))) +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+    theme_void() + 
+    theme(axis.text.x = element_text(size = 10, vjust = 0.5, hjust=0.5), 
+          axis.text.y = element_text(size = 10, vjust = 0.5, hjust=1), 
+          axis.title.x = element_text(size=12),
+          axis.title.y = element_text(size=12, angle = 90, vjust = 0.5),
+          legend.key.size = unit(0.5, 'cm')) +
+    labs(x = "\nDataset Pair", title = label)
+
+  png(paste0("results/figures/features/", model, "_", label, ".png"), width=5, height=3, units='in', res = 600, pointsize=80)
   print({p})
   dev.off()
 }
 
 # plot feature weights
-plot_feature("Linear")
-plot_feature("Linear", "free_y")
-plot_feature("LASSO")
-plot_feature("LASSO", "free_y")
+plot_feature("Linear", "Gene Expression")
+plot_feature("Linear", "Isoform Expression")
+plot_feature("Linear", "CIRI2")
+plot_feature("Linear", "CIRCexplorer2")
+plot_feature("Linear", "circRNA_finder")
+plot_feature("Linear", "find_circ")
 
+plot_feature("LASSO", "Gene Expression")
+plot_feature("LASSO", "Isoform Expression")
+plot_feature("LASSO", "CIRI2")
+plot_feature("LASSO", "CIRCexplorer2")
+plot_feature("LASSO", "circRNA_finder")
+plot_feature("LASSO", "find_circ")
 
 ############################################################
 # FROM HERE: RUN IndivFeatureInfluence.ipynb
