@@ -5,6 +5,7 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(ggpubr)
     library(dplyr)
+    library(tidyr)
     library(tidyverse)
     library(ggh4x)
     library(RColorBrewer)
@@ -235,7 +236,7 @@ compile_res <- function(model) {
 
   # transpose
   rownames(res) <- res$cat
-  res <- t(res[,-c(1, 6, 7)]) |> as.data.frame()
+  res <- t(res[,-c(1, 8, 9)]) |> as.data.frame()
 
   return(res)
 }
@@ -535,7 +536,53 @@ feature_df$label <- factor(feature_df$label,
 
 
 ############################################################
-# Plot model results from linear model
+# Format and save model results
+############################################################
+
+# function to compile results
+compile_res <- function() {
+  
+  df <- model_df
+  df$cat <- paste(df$label, df$pair, df$feature, sep = "-")
+  
+  # get average and max
+  res <- df %>%
+    group_by(cat) %>%
+    summarise(
+      avg_spearman = mean(Spearman, na.rm = TRUE),
+      sd_spearman  = sd(Spearman, na.rm = TRUE),
+      avg_pearson  = mean(Pearson, na.rm = TRUE),
+      sd_pearson   = sd(Pearson, na.rm = TRUE),
+      max_spearman = Spearman[which.max(abs(Spearman))],
+      max_pearson  = Pearson[which.max(abs(Pearson))],
+      .groups = "drop"
+    )
+  res <- res %>%
+    separate(cat, into = c("label", "pair", "feature"), sep = "-", remove = FALSE)
+  
+  # format results
+  res$label <- factor(res$label, levels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+  res$pair <- factor(res$pair, levels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE"))
+  res$feature <- factor(res$feature, levels = c("Median Exp", "GC%", "No. Exons", "Length"))
+
+  res <- res[order(res$label, res$pair, res$feature),] |> as.data.frame()
+
+  # transpose
+  rownames(res) <- res$cat
+  res <- t(res[,-c(1)]) |> as.data.frame()
+
+  return(res)
+}
+
+# compile results
+univariable_compile <- compile_res()
+
+# write results
+write.csv(univariable_compile, file = "results/data/feature_influence/multivariable/indiv_lm.csv", quote = F, row.names = T)
+
+
+############################################################
+# Plot model results from univariable models (across folds)
 ############################################################
 
 # function to plot model correlations
@@ -563,7 +610,56 @@ plot_model("Pearson")
 
 
 ############################################################
-# Plot feature results from linear model
+# Plot model results (average across folds)
+############################################################
+
+# function to plot model correlations
+plot_model <- function(corr, scales = "fixed") {
+
+  toPlot <- t(univariable_compile) |> as.data.frame()
+
+  # format columns
+  if (corr == "Spearman") {
+    colnames(toPlot)[colnames(toPlot) == "avg_spearman"] <- "corr"
+    colnames(toPlot)[colnames(toPlot) == "sd_spearman"] <- "sd"
+  }
+  if (corr == "Pearson") {
+    colnames(toPlot)[colnames(toPlot) == "avg_pearson"] <- "corr"
+    colnames(toPlot)[colnames(toPlot) == "sd_pearson"] <- "sd"
+  }
+  toPlot$corr <- as.numeric(toPlot$corr)
+  toPlot$sd <- as.numeric(toPlot$sd)
+
+  toPlot$pair <- factor(toPlot$pair, 
+    levels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE"))
+  toPlot$label <- factor(toPlot$label, 
+    levels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+  toPlot$feature <- factor(toPlot$feature, levels = c("Median Exp", "GC%", "No. Exons", "Length"))
+
+  p <- ggplot(toPlot, aes(x = feature, y = corr, fill = pair)) + 
+    geom_bar(stat="identity", color="black", position=position_dodge()) +
+    geom_errorbar(aes(ymin=corr-sd, ymax=corr+sd), width=.2, position=position_dodge(.9)) +
+    scale_fill_manual(values = pal) +
+    facet_wrap(.~label, nrow = 2, scales = scales) +
+    geom_hline(yintercept = 0) +
+    theme_classic() +
+    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+          legend.key.size = unit(0.5, 'cm')) +
+    labs(fill = "Dataset Pair", x = "Dataset Pair", y = corr) 
+
+  png(paste0("results/figures/avg/univariable_", corr, "_", scales, "_scales.png"), width=9, height=5, units='in', res = 600, pointsize=80)
+  print({p})
+  dev.off()
+}
+
+# plot model correlations
+plot_model("Spearman")
+plot_model("Spearman", "free_y")
+plot_model("Pearson")
+plot_model("Pearson", "free_y")
+
+############################################################
+# Plot feature results from univariable models 
 ############################################################
 
 # function to plot feature weights
