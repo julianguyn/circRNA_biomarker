@@ -249,7 +249,7 @@ write.csv(ls_compile, file = "results/data/feature_influence/multivariable/LASSO
 
 
 ############################################################
-# Plot model results from linear model
+# Plot model results (across all folds)
 ############################################################
 
 # function to plot model correlations
@@ -285,9 +285,65 @@ plot_model("LASSO", "Pearson")
 plot_model("LASSO", "Pearson", "free_y")
 
 
+############################################################
+# Plot model results (average across folds)
+############################################################
+
+# function to plot model correlations
+plot_model <- function(df, model, corr, scales = "fixed") {
+
+  toPlot <- t(df) |> as.data.frame()
+
+  # format columns
+  if (corr == "Spearman") {
+    colnames(toPlot)[colnames(toPlot) == "avg_spearman"] <- "corr"
+    colnames(toPlot)[colnames(toPlot) == "sd_spearman"] <- "sd"
+  }
+  if (corr == "Pearson") {
+    colnames(toPlot)[colnames(toPlot) == "avg_pearson"] <- "corr"
+    colnames(toPlot)[colnames(toPlot) == "sd_pearson"] <- "sd"
+  }
+  toPlot$corr <- as.numeric(toPlot$corr)
+  toPlot$sd <- as.numeric(toPlot$sd)
+
+  toPlot$pair <- factor(toPlot$pair, 
+    levels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE"))
+  toPlot$label <- factor(toPlot$label, 
+    levels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+
+
+
+  p <- ggplot(toPlot, aes(x = pair, y = corr, fill = pair)) + 
+    geom_bar(stat="identity", color="black", position=position_dodge()) +
+    geom_errorbar(aes(ymin=corr-sd, ymax=corr+sd), width=.2, position=position_dodge(.9)) +
+    scale_fill_manual(values = pal) +
+    facet_wrap(.~label, nrow = 1, scales = scales) +
+    geom_hline(yintercept = 0) +
+    theme_classic() +
+    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+          legend.key.size = unit(0.5, 'cm'),
+          axis.text.x = element_text(angle = 90, hjust = 0.1)) +
+    labs(fill = "Dataset Pair", x = "Dataset Pair", y = corr) 
+
+  png(paste0("results/figures/avg/", model, "_model_", corr, "_", scales, "_scales.png"), width=10, height=5, units='in', res = 600, pointsize=80)
+  print({p})
+  dev.off()
+}
+
+# plot model correlations
+plot_model(lm_compile, "Linear", "Spearman")
+plot_model(lm_compile, "Linear", "Spearman", "free_y")
+plot_model(ls_compile, "LASSO", "Spearman")
+plot_model(ls_compile, "LASSO", "Spearman", "free_y")
+
+plot_model(lm_compile, "Linear", "Pearson")
+plot_model(lm_compile, "Linear", "Pearson", "free_y")
+plot_model(ls_compile, "LASSO", "Pearson")
+plot_model(ls_compile, "LASSO", "Pearson", "free_y")
+
 
 ############################################################
-# Plot feature results from linear model
+# Plot feature results
 ############################################################
 
 # function to plot feature weights
