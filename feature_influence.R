@@ -78,275 +78,196 @@ write.csv(circ_stability, file = "../results/data/temp/circ_stability.csv", quot
 write.csv(cfnd_stability, file = "../results/data/temp/cfnd_stability.csv", quote = F, row.names = F)
 write.csv(fcrc_stability, file = "../results/data/temp/fcrc_stability.csv", quote = F, row.names = F)
 
-############################################################
-# Specify quantile based on Kuncheva Index
-############################################################
-
-gene_k <- 0.25
-isof_k <- 0.15
-ciri_k <- 0.2
-circ_k <- 0.1
-cfnd_k <- 0.15
-fcrc_k <- 0.1
 
 ############################################################
-# Create dataset pairs 
+# FROM HERE: RUN FeatureInfluence.ipynb
 ############################################################
 
-# function to split stability dataframe for each dataset pair
-stability_pair <- function(stability, pair, kuncheva) {
 
-  n <- nrow(stability)
-  
-  if (pair == "gcsi_ccle") {
-    stability <- stability[,c('gdsc_median','gc','n_exon','length','gcsi_ccle_spearman')]
-    stable <- stability[order(-stability$gcsi_ccle_spearman),]
-    unstable <- stability[order(stability$gcsi_ccle_spearman),]
-  }
-  if (pair == "gcsi_gdsc") {
-    stability <- stability[,c('ccle_median','gc','n_exon','length','gcsi_gdsc_spearman')]
-    stable <- stability[order(-stability$gcsi_gdsc_spearman),]
-    unstable <- stability[order(stability$gcsi_gdsc_spearman),]
-  }
-  if (pair == "gdsc_ccle") {
-    stability <- stability[,c('gcsi_median','gc','n_exon','length','gdsc_ccle_spearman')]
-    stable <- stability[order(-stability$gdsc_ccle_spearman),]
-    unstable <- stability[order(stability$gdsc_ccle_spearman),]
+############################################################
+# Define function to load in multivariable model results
+############################################################
+
+# helper function to format each dataset pair result
+load_pair <- function(path, pair, filetype) {
+
+  # process model datafile
+  if (filetype == "model") {
+    
+    # load in data files
+    lm <- read.csv(paste0(path, pair, "lm.csv"))
+    # remove brackets from Pearson
+    lm$Pearson <- gsub("\\[", "", gsub("]", "", lm$Pearson)) |> as.numeric()
+    lm$alpha <- lm$max_iter <- NA
+    ls <- read.csv(paste0(path, pair, "lasso.csv"))
+
+    # merge data files
+    df <- rbind(lm, ls)
+    df$pair <- gsub("/", "", pair)
   }
 
-  # subset based on kuncheva index
-  stable <- stable[1:(kuncheva*n),]
-  unstable <- unstable[1:(kuncheva*n),]
-  #stability <- rbind(stable,unstable) # remove hte filtering by kuncheva
+  # process feature datafile
+  if (filetype == "features") {
 
-  # shuffle data
-  stability <- stability[sample(1:nrow(stability)),]
+    # load in data files
+    lm <- read.csv(paste0(path, pair, "lm_features.csv"))
+    ls <- read.csv(paste0(path, pair, "lasso_features.csv"))
 
-  return(stability)
+    # add in labels
+    lm$model <- "Linear"
+    ls$model <- "LASSO"
+
+    # merge data files
+    df <- rbind(lm, ls)
+    df$pair <- gsub("/", "", pair)
+
+    # rename median
+    df$Peak[df$Peak %in% c("gdsc_median", "ccle_median", "gcsi_median")] <- "median"
+    colnames(df)[1] <- "Feature"
+  }
+  return(df)
 }
 
-gene_stability_gcsi_ccle <- stability_pair(gene_stability, "gcsi_ccle", gene_k)
-gene_stability_gcsi_gdsc <- stability_pair(gene_stability, "gcsi_gdsc", gene_k)
-gene_stability_gdsc_ccle <- stability_pair(gene_stability, "gdsc_ccle", gene_k)
+# function to load in results
+load_model <- function(label, filetype) {
 
-transcript_stability_gcsi_ccle <- stability_pair(transcript_stability, "gcsi_ccle", isof_k)
-transcript_stability_gcsi_gdsc <- stability_pair(transcript_stability, "gcsi_gdsc", isof_k)
-transcript_stability_gdsc_ccle <- stability_pair(transcript_stability, "gdsc_ccle", isof_k)
+  path = paste0("results/data/feature_influence/", label)
 
-ciri_stability_gcsi_ccle <- stability_pair(ciri_stability, "gcsi_ccle", ciri_k) #12
-ciri_stability_gcsi_gdsc <- stability_pair(ciri_stability, "gcsi_gdsc", ciri_k)
-ciri_stability_gdsc_ccle <- stability_pair(ciri_stability, "gdsc_ccle", ciri_k)
-
-circ_stability_gcsi_ccle <- stability_pair(circ_stability, "gcsi_ccle", circ_k) #12
-circ_stability_gcsi_gdsc <- stability_pair(circ_stability, "gcsi_gdsc", circ_k)
-circ_stability_gdsc_ccle <- stability_pair(circ_stability, "gdsc_ccle", circ_k)
-
-cfnd_stability_gcsi_ccle <- stability_pair(cfnd_stability, "gcsi_ccle", cfnd_k) #24
-cfnd_stability_gcsi_gdsc <- stability_pair(cfnd_stability, "gcsi_gdsc", cfnd_k)
-cfnd_stability_gdsc_ccle <- stability_pair(cfnd_stability, "gdsc_ccle", cfnd_k)
-
-fcrc_stability_gcsi_ccle <- stability_pair(fcrc_stability, "gcsi_ccle", fcrc_k) #100
-fcrc_stability_gcsi_gdsc <- stability_pair(fcrc_stability, "gcsi_gdsc", fcrc_k)
-fcrc_stability_gdsc_ccle <- stability_pair(fcrc_stability, "gdsc_ccle", fcrc_k)
-
-
-
-############################################################
-# Permutation feature importance
-############################################################
-
-# function to run Linear Regression
-runLinearReg <- function(x, label) {
-  
-  # Create dataframe to store feature scores
-  feature_score <- data.frame(matrix(ncol=4, nrow = 0))
-  colnames(feature_score) <- c("feature", "baseline", "permuted", "dataset")
-  
-  # Change colnames of inputted dataframe
-  colnames(x) <- c("median", colnames(x)[2:4], "spearman")
-  x <- na.omit(x)
-  
-  #10-fold CV
-  fitControl <- trainControl(method = "repeatedcv",
-                             number = 10,
-                             repeats = 10) 
-  
-  # Loop through each feature
-  for (i in 1:4) {
-    
-    feature <- colnames(x)[i]
-    
-    # get baseline score
-    gbmFit <- train(spearman ~ ., data = x, 
-                    method = "lm", 
-                    trControl = fitControl,
-                    verbose = FALSE)
-    #Save MSE score
-    baseline_score <- (gbmFit$results$RMSE)^2
-    
-    # Permute each feature 20,000 times
-    for (k in 1:20000) { 
-      
-      # shuffle feature column
-      shuffle_feat <- sample(x[,i])
-      x[,i] <- shuffle_feat
-      
-      gbmFit <- train(spearman ~ ., data = x, 
-                      method = "lm", 
-                      trControl = fitControl,
-                      verbose = FALSE)
-      
-      # Record permuted MSE score
-      permutation_score <- (gbmFit$results$RMSE)^2
-      
-      score <- data.frame(feature = feature, baseline = baseline_score, permuted = permutation_score, dataset = label)
-      feature_score <- rbind(feature_score, score)
-    }
+  # process model files
+  if (filetype == "model") {
+    df <- rbind(
+      load_pair(path, "/gcsi_ccle/", "model"),
+      load_pair(path, "/gcsi_gdsc/", "model"),
+      load_pair(path, "/gdsc_ccle/", "model")
+    )
   }
-  return(feature_score)
+  # process feature files
+  if (filetype == "features") {
+    df <- rbind(
+      load_pair(path, "/gcsi_ccle/", "features"),
+      load_pair(path, "/gcsi_gdsc/", "features"),
+      load_pair(path, "/gdsc_ccle/", "features")
+    )
+  }
+  df$label <- label
+  return(df)
 }
 
 
-gene_stability_gcsi_ccle <- runLinearReg(gene_stability_gcsi_ccle, "gcsi_ccle")
-gene_stability_gcsi_gdsc <- runLinearReg(gene_stability_gcsi_gdsc, "gcsi_gdsc")
-gene_stability_gdsc_ccle <- runLinearReg(gene_stability_gdsc_ccle, "gdsc_ccle")
-
-transcript_stability_gcsi_ccle <- runLinearReg(transcript_stability_gcsi_ccle, "gcsi_ccle")
-transcript_stability_gcsi_gdsc <- runLinearReg(transcript_stability_gcsi_gdsc, "gcsi_gdsc")
-transcript_stability_gdsc_ccle <- runLinearReg(transcript_stability_gdsc_ccle, "gdsc_ccle")
-
-ciri_stability_gcsi_ccle <- runLinearReg(ciri_stability_gcsi_ccle, "gcsi_ccle")
-ciri_stability_gcsi_gdsc <- runLinearReg(ciri_stability_gcsi_gdsc, "gcsi_gdsc")
-ciri_stability_gdsc_ccle <- runLinearReg(ciri_stability_gdsc_ccle, "gdsc_ccle")
-
-circ_stability_gcsi_ccle <- runLinearReg(circ_stability_gcsi_ccle, "gcsi_ccle")
-circ_stability_gcsi_gdsc <- runLinearReg(circ_stability_gcsi_gdsc, "gcsi_gdsc")
-circ_stability_gdsc_ccle <- runLinearReg(circ_stability_gdsc_ccle, "gdsc_ccle")
-
-cfnd_stability_gcsi_ccle <- runLinearReg(cfnd_stability_gcsi_ccle, "gcsi_ccle")
-cfnd_stability_gcsi_gdsc <- runLinearReg(cfnd_stability_gcsi_gdsc, "gcsi_gdsc")
-cfnd_stability_gdsc_ccle <- runLinearReg(cfnd_stability_gdsc_ccle, "gdsc_ccle")
-
-fcrc_stability_gcsi_ccle <- runLinearReg(fcrc_stability_gcsi_ccle, "gcsi_ccle")
-fcrc_stability_gcsi_gdsc <- runLinearReg(fcrc_stability_gcsi_gdsc, "gcsi_gdsc")
-fcrc_stability_gdsc_ccle <- runLinearReg(fcrc_stability_gdsc_ccle, "gdsc_ccle")
-
 ############################################################
-# Combine results for each transcript type
+# Load in mulivariable results
 ############################################################
 
-gene_features <- rbind(gene_stability_gcsi_ccle, gene_stability_gcsi_gdsc, gene_stability_ggdsc_ccle)
-transcript_features <- rbind(transcript_stability_gcsi_ccle, transcript_stability_gcsi_gdsc, transcript_stability_ggdsc_ccle)
-ciri_features <- rbind(ciri_stability_gcsi_ccle, ciri_stability_gcsi_gdsc, ciri_stability_ggdsc_ccle)
-circ_features <- rbind(circ_stability_gcsi_ccle, circ_stability_gcsi_gdsc, circ_stability_ggdsc_ccle)
-cfnd_features <- rbind(cfnd_stability_gcsi_ccle, cfnd_stability_gcsi_gdsc, cfnd_stability_ggdsc_ccle)
-fcrc_features <- rbind(fcrc_stability_gcsi_ccle, fcrc_stability_gcsi_gdsc, fcrc_stability_ggdsc_ccle)
-
-
-save(#gene_features, transcript_features,
-     ciri_features, circ_features, cfnd_features, fcrc_features,
-     file = "../results/data/temp/circ_feature_influence.RData")
-
-############################################################
-# Format results for plotting
-############################################################
-
-# function to format results for plotting
-format_features <- function(features) {
-  #rename datasets
-  features <- features %>% 
-    mutate(dataset = recode(dataset, "gcsi_ccle" = "gCSI/CCLE", "gcsi_gdsc" = "gCSI/GDSC", "gdsc_ccle" = "GDSC/CCLE"))
-
-  #rename features
-  features <- features %>% 
-    mutate(feature = recode(feature, "median" = "Median Expression", "gc" = "GC%", 
-                            "n_exon" = "Number of Exons", "length" = "Length"))
-  features$factor <- factor(features$feature, 
-                     levels=c('Median Expression', 'GC%', 'Number of Exons', 'Length'))
-
-  # compute difference
-  features$difference <- with(features, abs(baseline - permuted))
-
-  # function from http://www.sthda.com/english/wiki/ggplot2-error-bars-quick-start-guide-r-software-and-data-visualization
-  data_summary <- function(data, varname, groupnames){
-    require(plyr)
-    summary_func <- function(x, col){
-      c(mean = mean(x[[col]], na.rm=TRUE),
-        sd = sd(x[[col]], na.rm=TRUE))
-    }
-    data_sum<-ddply(data, groupnames, .fun=summary_func,
-                    varname)
-    data_sum <- rename(data_sum, c("mean" = varname))
-    return(data_sum)
-  }
-
-  lm_res <- data_summary(features, varname = "difference", groupnames = c("factor", "dataset"))
-
-  return(lm_res)
-}
-
-gene_res <- format_features(gene_features)
-transcript_res <- format_features(transcript_features)
-ciri_res <- format_features(ciri_features)
-circ_res <- format_features(circ_features)
-cfnd_res <- format_features(cfnd_features)
-fcrc_res <- format_features(fcrc_features)
-
-save(gene_res, transcript_res, ciri_res, circ_res, cfnd_res, fcrc_res, file = "../results/data/processed_feature_influence.RData")
-
-
-############################################################
-# Plot feature influence
-############################################################
-
+# set up palette for plotting
 pal = c("#DACCAB", "#C78B76", "#9D3737")
 
-plot_features <- function(res) {
+# set up model results
+model_df <- rbind(
+  load_model("Gene_Expression", "model"),
+  load_model("Isoform_Expression", "model"),
+  load_model("CIRI2", "model"),
+  load_model("CIRCexplorer2", "model"),
+  load_model("circRNA_finder", "model"),
+  load_model("find_circ", "model")
+)
 
-  p <- ggplot(data = res, aes(x=factor, y=difference, fill = dataset)) + 
-  geom_bar(stat="identity", color="black", position=position_dodge()) +
-  geom_errorbar(aes(ymin=difference-sd, ymax=difference+sd), width=.2, position=position_dodge(.9)) +
-  ylab(expression('MSE - MSE'['permuted'])) + xlab("\nFeature") + 
-  scale_fill_manual(guide = guide_legend(reverse = FALSE, title = "Dataset"), labels=c("gCSI/CCLE","gCSI/GDSC","GDSC/CCLE"), values = pal) + 
-  scale_x_discrete(limits = c('Median Expression', 'GC%', 'Number of Exons', 'Length'),
-                   labels=c('Median\nExpression', 'GC%', 'Number\nof Exons', 'Length')) + 
-  theme_classic() + #scale_y_continuous(limits = c(0, 0.032), expand=c(0,0)) +
-  theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5),
-        text = element_text(size = 15), 
-        legend.key.size = unit(0.6, 'cm'),
-        axis.text.x = element_text(size=12, vjust = 0.5), 
-        plot.title = element_text(hjust = 0.5, size = 17), 
-        legend.position = "bottom") + 
-  guides(guide_legend(title.vjust = 2.8))
+# format model dataframe
+model_df$Fold <- factor(model_df$Fold, levels = c(1, 2, 3, 4, 5))
+model_df$pair <- factor(model_df$pair, 
+  levels = c("gcsi_ccle", "gcsi_gdsc", "gdsc_ccle"),
+  labels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE"))
+model_df$label <- factor(model_df$label, 
+  levels = c("Gene_Expression", "Isoform_Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"),
+  labels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 
-  return(p)
+
+# set up feature results
+feature_df <- rbind(
+  load_model("Gene_Expression", "features"),
+  load_model("Isoform_Expression", "features"),
+  load_model("CIRI2", "features"),
+  load_model("CIRCexplorer2", "features"),
+  load_model("circRNA_finder", "features"),
+  load_model("find_circ", "features")
+)
+
+# format feature dataframe
+feature_df$Feature <- factor(feature_df$Feature, 
+  levels = c("median", "gc", "n_exon", "length"),
+  labels = c("Median Exp", "GC%", "No. Exons", "Length"))
+feature_df$label <- factor(feature_df$label, 
+  levels = c("Gene_Expression", "Isoform_Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"),
+  labels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+
+
+############################################################
+# Plot model results from linear model
+############################################################
+
+# function to plot model correlations
+plot_model <- function(model, corr, scales = "fixed") {
+
+  toPlot <- model_df[model_df$Model == model,]
+
+  p <- ggplot(toPlot, aes(x = pair, y = .data[[corr]], fill = pair, alpha = Fold)) + 
+    geom_bar(stat="identity", color="black", position=position_dodge()) +
+    scale_fill_manual(values = pal) +
+    facet_wrap(.~label, nrow = 1, scales = scales) +
+    geom_hline(yintercept = 0) +
+    theme_classic() +
+    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+          legend.key.size = unit(0.5, 'cm'),
+          axis.text.x = element_text(angle = 90, hjust = 0.1)) +
+    labs(fill = "Dataset Pair", x = "Dataset Pair") 
+
+  png(paste0("results/figures/", model, "_model_", corr, "_", scales, "_scales.png"), width=11, height=5, units='in', res = 600, pointsize=80)
+  print({p})
+  dev.off()
 }
- 
 
-png("../results/figures/figure8/gene_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
-plot_features(gene_res)
-dev.off()
+# plot model correlations
+plot_model("Linear", "Spearman")
+plot_model("Linear", "Spearman", "free_y")
+plot_model("LASSO", "Spearman")
+plot_model("LASSO", "Spearman", "free_y")
 
-png("../results/figures/figure8/transcript_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
-plot_features(transcript_res)
-dev.off()
+plot_model("Linear", "Pearson")
+plot_model("Linear", "Pearson", "free_y")
+plot_model("LASSO", "Pearson")
+plot_model("LASSO", "Pearson", "free_y")
 
-png("../results/figures/figure8/ciri_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
-plot_features(ciri_res)
-dev.off()
 
-png("../results/figures/figure8/circ_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
-plot_features(circ_res)
-dev.off()
-
-png("../results/figures/figure8/cfnd_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
-plot_features(cfnd_res)
-dev.off()
-
-png("../results/figures/figure8/fcrc_features.png", width=150, height=150, units='mm', res = 600, pointsize=80)
-plot_features(fcrc_res)
-dev.off()
 
 ############################################################
-# Compile lm results
+# Plot feature results from linear model
 ############################################################
+
+# function to plot feature weights
+plot_feature <- function(model, scales = "fixed") {
+
+  toPlot <- feature_df[feature_df$model == model,]
+
+  p <- ggplot(toPlot, aes(x = Feature, y = Weight, fill = pair)) + 
+    geom_bar(stat="identity", color="black", position=position_dodge()) +
+    scale_fill_manual(values = pal, 
+                      labels = c("gcsi_ccle" = "gCSI/CCLE",
+                                "gcsi_gdsc" = "gCSI/GDSC",
+                                "gdsc_ccle" = "GDSC/CCLE")) +
+    facet_wrap(.~label, nrow = 1, scales = scales) +
+    geom_hline(yintercept = 0) +
+    theme_classic() +
+    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+          legend.key.size = unit(0.5, 'cm'),
+          axis.text.x = element_text(angle = 90, hjust = 0.1)) +
+    labs(fill = "Dataset Pair") 
+
+  png(paste0("results/figures/", model, "_features_", scales, "_scales.png"), width=11, height=5, units='in', res = 600, pointsize=80)
+  print({p})
+  dev.off()
+}
+
+# plot feature weights
+plot_feature("Linear")
+plot_feature("Linear", "free_y")
+plot_feature("LASSO")
+plot_feature("LASSO", "free_y")
