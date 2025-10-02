@@ -1,6 +1,5 @@
 # load libraries
 suppressPackageStartupMessages({
-    library(caret)
     library(reshape2)
     library(ggplot2)
     library(ggpubr)
@@ -759,7 +758,8 @@ plot_SI_quantiles <- function(df, label) {
   print({p})
   dev.off()
 
-  # return dataframe
+  # return dataframe with median expression only
+  toPlot <- toPlot[toPlot$variable == "Median Expression",]
   toPlot$label <- label
   return(toPlot)
 }
@@ -773,17 +773,20 @@ toPlot <- rbind(
   plot_SI_quantiles(cfnd, "circRNA_finder"),
   plot_SI_quantiles(fcrc, "find_circ")
 )
+toPlot$label <- factor(toPlot$label, 
+    levels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+  
 
 # plot median expression 
-toPlot <- toPlot[toPlot$variable == "Median Exp",]
-
-png("results/figures/distribution/median_expression.png", width=180, height=150, units='mm', res = 600, pointsize=80)
+toPlot <- toPlot[!is.na(toPlot$qt),]
+png("results/figures/distribution/median_expression.png", width=13.5, height=5, units='in', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = pair, y = value, fill = qt)) + 
   geom_boxplot() + 
-  facet_wrap(.~label, scales = "free_y") + 
+  facet_wrap(.~label, scales = "free_y", nrow = 1) + 
   scale_fill_manual(values = c("#333d29", "#414833", "#656d4a", "#a4ac86")) +
   theme_classic() + 
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-        legend.key.size = unit(0.5, 'cm')) +
-  labs(y = "Feature Value", x = "", fill = "Quantile", title = label)
+        legend.key.size = unit(0.5, 'cm'),
+        axis.text.x = element_text(angle = 90, hjust = 0.1)) +
+  labs(y = "Median Expression", x = "", fill = "Quantile")
 dev.off()
