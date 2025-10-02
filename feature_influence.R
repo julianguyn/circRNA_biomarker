@@ -687,3 +687,103 @@ plot_feature <- function(scales = "fixed") {
 # plot feature weights
 plot_feature()
 plot_feature("free_y")
+
+
+############################################################
+# Feature distribution by SI quantiles
+############################################################
+
+# load in stability indices
+gene <- read.csv("temp/gene_stability.csv")
+isof <- read.csv("temp/transcript_stability.csv")
+ciri <- read.csv("temp/ciri_stability.csv")
+circ <- read.csv("temp/circ_stability.csv")
+cfnd <- read.csv("temp/cfnd_stability.csv")
+fcrc <- read.csv("temp/fcrc_stability.csv")
+
+# helper function to create feature df per pair
+helper_SI_quantiles <- function(df, pair) {
+
+  median <- c("gcsi_ccle" = "gdsc_median",
+              "gcsi_gdsc" = "ccle_median",
+              "gdsc_ccle" = "gcsi_median")
+
+  # columns to keep
+  keep <- c(paste0(pair, "_spearman"), "gc", "n_exon", "length", median[pair])
+  subset <- df[,colnames(df) %in% keep]
+  colnames(subset)[colnames(subset) == median[pair]] <- "median"
+
+  # get quantile labels
+  subset$qt <- cut(subset[[paste0(pair, "_spearman")]],
+      breaks = quantile(subset[[paste0(pair, "_spearman")]], probs = seq(0, 1, 0.25), na.rm = TRUE),
+      include.lowest = TRUE,
+      labels = 1:4)
+  subset[[paste0(pair, "_spearman")]] <- NULL
+
+  # melt dataframe
+  df <- reshape2::melt(subset, id.vars = "qt")
+  df$pair <- pair
+
+  return(df)
+}
+
+# function to stratify and plot features per SI quantile
+plot_SI_quantiles <- function(df, label) {
+
+  toPlot <- rbind(
+    helper_SI_quantiles(df, "gcsi_ccle"),
+    helper_SI_quantiles(df, "gcsi_gdsc"),
+    helper_SI_quantiles(df, "gdsc_ccle")
+  )
+
+  toPlot$variable <- factor(toPlot$variable, 
+    levels = c("median", "gc", "n_exon", "length"),
+    labels = c("Median Expression", "GC%", "Number of Exons", "Length"))
+  toPlot$pair <- factor(toPlot$pair, 
+    levels = c("gcsi_ccle", "gcsi_gdsc", "gdsc_ccle"),
+    labels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE"))
+  
+  # box plots
+  p <- ggplot(toPlot, aes(x = pair, y = value, fill = qt)) + 
+    geom_boxplot() + 
+    facet_wrap(.~variable, scales = "free_y") + 
+    scale_fill_manual(values = c("#333d29", "#414833", "#656d4a", "#a4ac86")) +
+    theme_classic() + 
+    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+          legend.key.size = unit(0.5, 'cm')) +
+    labs(y = "Feature Value", x = "", fill = "Quantile", title = label)
+  
+  # save plot
+  filepath = paste0("results/figures/distribution/si_", label, "_feature_distribution.png")
+  png(filepath, width=180, height=150, units='mm', res = 600, pointsize=80)
+  print({p})
+  dev.off()
+
+  # return dataframe
+  toPlot$label <- label
+  return(toPlot)
+}
+
+# compile dataframes (and plot)
+toPlot <- rbind(
+  plot_SI_quantiles(gene, "Gene Expression"),
+  plot_SI_quantiles(isof, "Isoform Expression"),
+  plot_SI_quantiles(ciri, "CIRI2"),
+  plot_SI_quantiles(circ, "CIRCexplorer2"),
+  plot_SI_quantiles(cfnd, "circRNA_finder"),
+  plot_SI_quantiles(fcrc, "find_circ")
+)
+
+# plot median expression 
+toPlot <- toPlot[toPlot$variable == "Median Exp",]
+
+png("results/figures/distribution/median_expression.png", width=180, height=150, units='mm', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = pair, y = value, fill = qt)) + 
+  geom_boxplot() + 
+  facet_wrap(.~label, scales = "free_y") + 
+  scale_fill_manual(values = c("#333d29", "#414833", "#656d4a", "#a4ac86")) +
+  theme_classic() + 
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+        legend.key.size = unit(0.5, 'cm')) +
+  labs(y = "Feature Value", x = "", fill = "Quantile", title = label)
+dev.off()
