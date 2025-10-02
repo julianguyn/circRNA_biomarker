@@ -408,7 +408,8 @@ corr_pset <- function(pset1, pset2, filename) {
     toPlot <- na.omit(toPlot)
 
     # compute spearman correlation
-    cor.test(toPlot$diff1, toPlot$diff2, method = "spearman", alternative = "two.sided")
+    res <- cor.test(toPlot$diff1, toPlot$diff2, method = "spearman", alternative = "two.sided")
+    print(res)
 
     # create pset labels
     p1 <- gsub("../results/figures/figure9/", "", str_split_1(filename, pattern = "_")[1])
@@ -416,26 +417,30 @@ corr_pset <- function(pset1, pset2, filename) {
 
     # create fdr significance label
     toPlot$fdr_sig <- ifelse(toPlot$fdr1 < 0.05, 
-                            ifelse(toPlot$fdr2 < 0.05, "Both PSets", paste(p1, "Only")),
-                        ifelse(toPlot$fdr2 < 0.05, paste(p2, "Only"), "Neither PSet"))
-    toPlot$fdr_sig <- factor(toPlot$fdr_sig, levels = c("Both PSets", paste(p1, "Only"), paste(p2, "Only"), "Neither PSet"))
+                            ifelse(toPlot$fdr2 < 0.05, "Both Datasets", paste(p1, "Only")),
+                        ifelse(toPlot$fdr2 < 0.05, paste(p2, "Only"), "Neither Dataset"))
+    toPlot$fdr_sig <- factor(toPlot$fdr_sig, levels = c("Both Datasets", paste(p1, "Only"), paste(p2, "Only"), "Neither Dataset"))
 
     # label overlapping associations
     toPlot$to_label <- ifelse(toPlot$pair %in% to_label, gsub(".*_", "", toPlot$pair), "")
-    toPlot$to_label <- ifelse(toPlot$fdr_sig != "Both PSets", "", toPlot$to_label)
+    toPlot$to_label <- ifelse(toPlot$fdr_sig != "Both Datasets", "", toPlot$to_label)
 
     # set palette for plotting
-    pal = c("#FCD0A1", "#63535B", "#53917E", "grey")
-
+    group_names <- c("Both Datasets", paste(p1, "Only"), paste(p2, "Only"), "Neither Dataset")
+    col <- c("#FCD0A1", "#63535B", "#53917E", "grey")
+    pal <- setNames(col, group_names)
+    
     # plot scatter plot
     png(paste0(filename, ".png"), width = 6, height = 4, res = 600, units = "in")
     print({ggplot(toPlot, aes(x = diff1, y = diff2, label = to_label)) + 
         geom_point(data = toPlot, aes(x = diff1, y = diff2, color = fdr_sig), shape = 16) +
         geom_point(data = toPlot[toPlot$fdr_sig == paste(p1, "Only"),], aes(x = diff1, y = diff2), size = 2, shape = 21, fill = pal[2]) +
         geom_point(data = toPlot[toPlot$fdr_sig == paste(p2, "Only"),], aes(x = diff1, y = diff2), size = 2, shape = 21, fill = pal[3]) +
-        geom_point(data = toPlot[toPlot$fdr_sig == "Both PSets", ], aes(x = diff1, y = diff2), size = 2.5, shape = 21, fill = pal[1]) +
+        geom_point(data = toPlot[toPlot$fdr_sig == "Both Datasets", ], aes(x = diff1, y = diff2), size = 2.5, shape = 21, fill = pal[1]) +
         geom_text_repel(box.padding = 0.5, max.overlaps = Inf) +
-        scale_color_manual("P-Value < 0.05", values = pal) +
+        geom_vline(xintercept = 0, linetype = "dashed") +
+        geom_hline(yintercept = 0, linetype = "dashed") +
+        scale_color_manual("FDR < 0.1", values = pal) +
         theme_classic() + guides(color = guide_legend(override.aes = list(size = 3))) +
         theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5)) +
         labs(x = paste(p1, "Average Difference in AAC"), y = paste(p2, "Average Difference in AAC"))})
