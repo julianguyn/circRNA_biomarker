@@ -363,17 +363,17 @@ plot_feature <- function(model, label) {
 
   p <- ggplot(toPlot, aes(x = pair, y = Feature, fill = Weight)) + 
     geom_tile(color = "black") +
-    geom_text(aes(label = round(Weight, 4))) +
-    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+    geom_text(aes(label = round(Weight, 3))) +
+    scale_fill_gradient2(low = "#9D3737", mid = "white", high = "#3670A0", midpoint = 0) +
     theme_void() + 
     theme(axis.text.x = element_text(size = 10, vjust = 0.5, hjust=0.5), 
           axis.text.y = element_text(size = 10, vjust = 0.5, hjust=1), 
           axis.title.x = element_text(size=12),
           axis.title.y = element_text(size=12, angle = 90, vjust = 0.5),
           legend.key.size = unit(0.5, 'cm')) +
-    labs(x = "\nDataset Pair", title = label)
+    labs(x = "", y = "", fill = "Feature\nWeight", title = label)
 
-  png(paste0("results/figures/features/", model, "_", label, ".png"), width=5, height=3, units='in', res = 600, pointsize=80)
+  png(paste0("results/figures/features/", model, "_", label, ".png"), width=4.2, height=3, units='in', res = 600, pointsize=80)
   print({p})
   dev.off()
 }
