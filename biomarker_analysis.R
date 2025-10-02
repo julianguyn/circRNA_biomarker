@@ -5,8 +5,9 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(ComplexHeatmap)
     library(ggh4x)
-    library(ggVennDiagram)
     library(stringr)
+    library(RColorBrewer)
+    library(ggrepel)
 })
 
 
@@ -100,24 +101,7 @@ gcsi_df[gcsi_df == 0] <- NA
 ccle_df[ccle_df == 0] <- NA
 gdsc_df[gdsc_df == 0] <- NA
 
-
-############################################################
-# Get median expression for each transcript
-############################################################
-
-# keep only samples with drug response
-gcsi_df <- gcsi_df[rownames(gcsi_df) %in% colnames(gcsi_sen),]      
-ccle_df <- ccle_df[rownames(ccle_df) %in% colnames(ccle_sen),]      
-gdsc_df <- gdsc_df[rownames(gdsc_df) %in% colnames(gdsc_sen),]      
-
-print("computing median")
-
-# compute median transcript expression
-gcsi_median <- apply(gcsi_df, 2, median, na.rm = TRUE)
-ccle_median <- apply(ccle_df, 2, median, na.rm = TRUE)
-gdsc_median <- apply(gdsc_df, 2, median, na.rm = TRUE)
-
-save(gcsi_df, ccle_df, gdsc_df, gcsi_median, ccle_median, gdsc_median, file = "../results/data/biomarker_analysis_circ.RData")
+save(gcsi_df, ccle_df, gdsc_df, file = "../results/data/biomarker_analysis_circ.RData")
 
 
 ############################################################
@@ -218,35 +202,13 @@ load(paste0(dr_out, "gcsi_bin0.RData"))
 load(paste0(dr_out, "ccle_bin0.RData"))
 load(paste0(dr_out, "gdsc_bin0.RData"))
 
-# number of biomarker associations
-# gCSI: 5488
-# CCLE: 73800
-# GDSC: 33507
+############################################################
+# FDR normalize per drug
+############################################################
 
-# number of biomarker associations with pval < 0.05
-# gCSI: 408
-# CCLE: 3505
-# GDSC: 4930
-
-# number of biomarker associations with FDR < 0.05
-# gCSI: 2
-# CCLE: 0
-# GDSC: 788
-
-# number of biomarker associations with FDR < 0.1
-# gCSI: 4
-# CCLE: 0
-# GDSC: 1441
-
-# number of biomarker associations with FDR < 0.15
-# gCSI: 9
-# CCLE: 0
-# GDSC: 2233
-
-# number of biomarker associations with FDR < 0.2
-# gCSI: 14
-# CCLE: 0
-# GDSC: 2946
+gcsi_bin_dr$FDR_drug <- ave(gcsi_bin_dr$pval, gcsi_bin_dr$Drug, FUN = function(p) p.adjust(p, method = "BH"))
+ccle_bin_dr$FDR_drug <- ave(ccle_bin_dr$pval, ccle_bin_dr$Drug, FUN = function(p) p.adjust(p, method = "BH"))
+gdsc_bin_dr$FDR_drug <- ave(gdsc_bin_dr$pval, gdsc_bin_dr$Drug, FUN = function(p) p.adjust(p, method = "BH"))
 
 
 ############################################################
@@ -254,25 +216,14 @@ load(paste0(dr_out, "gdsc_bin0.RData"))
 ############################################################
 
 # function to subset for significant associations
-subset_dr <- function(dr, type = "pval") {
-
-    if (type == "pval") {
-        dr <- dr[which(dr$pval < 0.05),] 
-        return(dr)
-    } else {
-        dr <- dr[which(dr$FDR < 0.2),] 
-        return(dr)
-    }
+subset_dr <- function(dr) {
+    dr <- dr[which(dr$FDR_drug < 0.1),] 
+    return(dr)
 }
 
-# subset binarized drug response
-gcsi_pval_b <- subset_dr(gcsi_bin_dr)
-gdsc_pval_b <- subset_dr(gdsc_bin_dr)
-ccle_pval_b <- subset_dr(ccle_bin_dr)
-
-gcsi_fdr_b <- subset_dr(gcsi_bin_dr, type = "fdr")
-gdsc_fdr_b <- subset_dr(gdsc_bin_dr, type = "fdr")
-ccle_fdr_b <- subset_dr(ccle_bin_dr, type = "fdr")
+gcsi_fdr_b <- subset_dr(gcsi_bin_dr)
+gdsc_fdr_b <- subset_dr(gdsc_bin_dr)
+ccle_fdr_b <- subset_dr(ccle_bin_dr)
 
 
 ############################################################
@@ -281,25 +232,26 @@ ccle_fdr_b <- subset_dr(ccle_bin_dr, type = "fdr")
 
 # function to create upset plot
 plot_upset <- function(comb_mat, set_order, filename) {
-    png(paste0("../results/figures/figure9/upset_dr_", filename, ".png"), width = 6, height = 4, res = 600, units = "in")
+    png(paste0("../results/figures/figure9/upset_dr_", filename, ".png"), width = 4, height = 3, res = 600, units = "in")
     print({UpSet(comb_mat, set_order = set_order,
         top_annotation = upset_top_annotation(comb_mat, add_numbers = TRUE),
-        comb_order = order(-comb_size(comb_mat))) 
+        comb_order = order(-comb_size(comb_mat)),
+        right_annotation = upset_right_annotation(comb_mat, add_numbers = TRUE)) 
     })
     dev.off()
 }
 
 # create list object of transcripts for upset plot
 toPlot_bin <- make_comb_mat(list(
-            gCSI = gcsi_pval_b$pair,
-            CCLE = ccle_pval_b$pair,
-            GDSC = gdsc_pval_b$pair))
+            gCSI = gcsi_fdr_b$pair,
+            CCLE = ccle_fdr_b$pair,
+            GDSC = gdsc_fdr_b$pair))
 
 # plot upset plots
 plot_upset(toPlot_bin, set_order = c("gCSI", "CCLE", "GDSC"), filename = "bin0")
 
 ############################################################
-# Compare Stat of Overlapping P-Val Sig Biomarkers
+# TODO: REDO THIS PLOT: Compare Stat of Overlapping P-Val Sig Biomarkers
 ############################################################
 
 # function to create dataframe of overlapping p-value significant biomarkers
@@ -347,29 +299,25 @@ dev.off()
 ############################################################
 
 # save top 10 associations from each PSet
-gcsi_pval <- gcsi_pval_b[order(gcsi_pval_b$W, decreasing = T),][1:10,]
-ccle_pval <- ccle_pval_b[order(ccle_pval_b$W, decreasing = T),][1:10,]
-gdsc_pval <- gdsc_pval_b[order(gdsc_pval_b$W, decreasing = T),][1:10,]
+gcsi_top <- gcsi_fdr_b[order(abs(gcsi_fdr_b$diff), decreasing = T),][1:20,]
+ccle_top <- ccle_fdr_b[order(abs(ccle_fdr_b$diff), decreasing = T),][1:20,]
+gdsc_top <- gdsc_fdr_b[order(abs(gdsc_fdr_b$diff), decreasing = T),][1:20,]
 
-pval_biomarkers <- unique(c(gcsi_pval$pair, ccle_pval$pair, gdsc_pval$pair))
-
-#gcsi_pval <- gcsi_pval_l[order(gcsi_pval_l$estimate, decreasing = T),][1:10,]
-#ccle_pval <- ccle_pval_l[order(ccle_pval_l$estimate, decreasing = T),][1:10,]
-#gdsc_pval <- gdsc_pval_l[order(gdsc_pval_l$estimate, decreasing = T),][1:10,]
+top_biomarkers <- unique(c(gcsi_top$pair, ccle_top$pair, gdsc_top$pair))
 
 # function to create dataframe for plotting
 format_bin <- function(bin_df, counts_df, drug_df) {
 
     # create dataframe for plotting
-    df <- data.frame(Feature = gsub(".*_", "", pval_biomarkers),
-                     Drug = gsub("_.*", "", pval_biomarkers), 
-                     Pair = pval_biomarkers,
+    df <- data.frame(Feature = gsub(".*_", "", top_biomarkers),
+                     Drug = gsub("_.*", "", top_biomarkers), 
+                     Pair = top_biomarkers,
                      PSet = bin_df$PSet[1], 
                      Status = NA, 
-                     W = NA)
+                     Diff = NA)
 
     # subset results
-    subset <- bin_df[bin_df$pair %in% pval_biomarkers,]
+    subset <- bin_df[bin_df$pair %in% top_biomarkers,]
 
     for (i in seq_along(df$Pair)) {
         drug = df$Drug[i]
@@ -377,22 +325,22 @@ format_bin <- function(bin_df, counts_df, drug_df) {
         pair = df$Pair[i]
 
         if (!drug %in% rownames(drug_df)) { # drug no in PSet
-            df$Status[i] <- ""
+            df$Status[i] <- NA
         } else if (!feature %in% colnames(counts_df)) { # circRNA not detected
             df$Status[i] <- "ND"
         } else if (!pair %in% subset$pair) { # not enough for association
-            df$W[i] <- 0
-            df$Status[i] <- "NA"
+            df$Diff[i] <- 0
+            df$Status[i] <- "NE"
         } else {
 
-            df$W[i] <- subset[subset$pair == pair,]$W   # P-Val > 0.05
+            df$Diff[i] <- subset[subset$pair == pair,]$diff   # P-Val > 0.05
             df$Status[i] <- ""
 
             # check p-value and FDR
             if (subset[subset$pair == pair,]$pval < 0.05) { #P-Val < 0.05
                 df$Status[i] <- "*"
             }
-            if (subset[subset$pair == pair,]$FDR < 0.05) { #FDR < 0.05
+            if (subset[subset$pair == pair,]$FDR_drug < 0.1) { #FDR < 0.1
                 df$Status[i] <- "**"
             }
         }
@@ -408,99 +356,46 @@ gdsc_bin_dr$PSet <- "GDSC"
 toPlot <- rbind(format_bin(gcsi_bin_dr, gcsi_df, gcsi_sen), 
                 format_bin(ccle_bin_dr, ccle_df, ctrp_sen), 
                 format_bin(gdsc_bin_dr, gdsc_df, gdsc_sen))
-toPlot$Pair <- factor(toPlot$Pair, levels = rev(pval_biomarkers))
+toPlot$Pair <- factor(toPlot$Pair, levels = rev(top_biomarkers))
 toPlot$PSet <- factor(toPlot$PSet, levels = c("gCSI", "CCLE", "GDSC"))
 
+# create labels
+toPlot$label <- paste(rep(1:20), toPlot$Drug, sep = ": ")
+
+# set up values to colour 
+toPlot$Diff[is.na(toPlot$Status)] <- NA
+toPlot$Diff[which(toPlot$Status == "ND")] <- 0
 
 # plot overlapping biomarkers
-png("../results/figures/figure9/top10_bin0_pval_biomarkers.png", width = 7.5, height = 5, res = 600, units = "in")
-ggplot(toPlot, aes(x = PSet, y = Pair, fill = W)) + 
+png("../results/figures/figure9/top10_bin0_biomarkers.png", width = 5, height = 10, res = 600, units = "in")
+ggplot(toPlot, aes(x = PSet, y = Pair, fill = Diff)) + 
     geom_tile() +
-    geom_hline(yintercept = c(10.5, 20.5), linetype = "dashed") +
-    #geom_text(aes(label = ifelse(pval < 0.05, "*", ""))) +
+    geom_hline(yintercept = c(20.5, 40.5), linetype = "dashed") +
     geom_text(aes(label = Status), size = 3) +
-    labs(fill = "Wilcoxon Rank\nSum Test Statistic", y = "Drug-CircRNA Pair", x = "PSet") + 
+    scale_y_discrete(labels = setNames(toPlot$label, toPlot$Pair)) +
+    labs(fill = "Average\nDifference\nin AAC", y = "Drug-CircRNA Pair", x = "PSet") + 
     theme_classic() + 
-    scale_fill_gradient2(low = 'white', mid = '#E1E7DF', high = '#878E76', na.value = "white") +
-    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5), legend.title = element_text(size = 9))
+    scale_fill_gradient2(low = "#9D3737", mid = "white", high = "#3670A0", midpoint = 0, na.value = "grey") +
+    theme(
+        panel.border = element_rect(color = "black", fill = NA, size = 0.5), 
+        legend.title = element_text(size = 9))
 dev.off()
 
-# get two overlapping associations
-tmp <- toPlot[toPlot$Status == "*",]$Pair
-to_label <- tmp[which(duplicated(tmp))]
-
-
-############################################################
-# Volcano Plots
-############################################################
-
-plot_volcano <- function(bin_dr, pval_df) {
-
-    bin_dr <- bin_dr[!is.na(bin_dr$diff),]
-
-    # get top5 p-value to label
-    #to_label <- pval_df[order(pval_df$W, decreasing = T),][1:5,]$pair
-    #bin_dr$to_label <- ifelse(bin_dr$pair %in% to_label, gsub("_", "\n", bin_dr$Feature), "")
-
-    # label overlapping associations
-    to_keep <- toPlot_bin[toPlot_bin$pval < 0.05,]
-    to_keep <- to_keep[duplicated(to_keep$pair),]$pair
-    bin_dr$to_label <- ifelse(bin_dr$pair %in% to_keep, gsub("_", "\n", bin_dr$Feature), "")
-
-
-    # label by significance
-    bin_dr$Label <- ifelse(bin_dr$pval < 0.05, 
-            ifelse(bin_dr$diff > 0, "Positive\nAssociation", "Negative\nAssociation"), 
-            "Not FDR\nSignificant")
-    bin_dr$Label <- factor(bin_dr$Label, levels = c("Positive\nAssociation", "Negative\nAssociation", "Not FDR\nSignificant"))
-
-    # get x limits
-    x <- max(c(abs(min(bin_dr$diff)), max(bin_dr$diff)))
-
-    # plot
-    p <- ggplot(bin_dr, aes(x = diff, y = -log(pval), label = to_label)) + 
-        geom_point(aes(color = Label,)) + xlim(-x, x) +
-        geom_text_repel(force_pull = 0.5, nudge_x = x/2, direction = "y", max.overlaps = Inf) +
-        geom_vline(xintercept = c(0.05, -0.05), linetype = "dashed", color = "gray") +
-        theme_classic() + 
-        scale_color_manual(values = c("#3E92CC", "#B23A48", "gray")) +
-        theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5),    
-            legend.key.size = unit(0.5, 'cm')) +
-        labs(x = "Difference in Average AAC", y = "-log(P-Value)")
-    return(p)
-
-}
-
-png("../results/figures/figure9/volcano_bin0_gCSI.png", width = 6, height = 4, res = 600, units = "in")
-plot_volcano(gcsi_bin_dr, gcsi_pval_b)
-dev.off()
-
-png("../results/figures/figure9/volcano_bin0_CCLE.png", width = 6, height = 4, res = 600, units = "in")
-plot_volcano(ccle_bin_dr, ccle_pval_b)
-dev.off()
-
-png("../results/figures/figure9/volcnao_bin0_GDSC.png", width = 6, height = 4, res = 600, units = "in")
-plot_volcano(gdsc_bin_dr, gdsc_pval_b)
-dev.off()
 
 ############################################################
 # Pair-wise correlation plots across PSets
 ############################################################
 
 # function to create correlation plot
-corr_pset <- function(pset1, pset2, type, filename) {
+corr_pset <- function(pset1, pset2, filename) {
 
     # get common pairs
     common <- intersect(pset1$pair, pset2$pair)
     pset1 <- pset1[pset1$pair %in% common,]
     pset2 <- pset2[pset2$pair %in% common,]
 
-    # rename metric for plotting
-    metric = "Linear Regression\nEffect Size"
-    if (type == "bin") {
-        colnames(pset1)[colnames(pset1) == "W"] <- colnames(pset2)[colnames(pset2) == "W"] <- "estimate"
-        metric = "Wilcoxon Rank Sum\nTest Statistic"
-    } 
+    # print number of common pairs
+    print(paste("Number of common pairs:", length(common)))
 
     # order dataframes
     pset1 <- pset1[order(pset1$pair),]
@@ -508,47 +403,50 @@ corr_pset <- function(pset1, pset2, type, filename) {
 
     # create dataframe to plot
     toPlot <- data.frame(pair = pset1$pair, 
-                         estimate1 = pset1$estimate, estimate2 = pset2$estimate,
-                         pval1 = pset1$pval, pval2 = pset2$pval)
+                         diff1 = pset1$diff, diff2 = pset2$diff,
+                         fdr1 = pset1$FDR_drug, fdr2 = pset2$FDR_drug)
     toPlot <- na.omit(toPlot)
+
+    # compute spearman correlation
+    cor.test(toPlot$diff1, toPlot$diff2, method = "spearman", alternative = "two.sided")
 
     # create pset labels
     p1 <- gsub("../results/figures/figure9/", "", str_split_1(filename, pattern = "_")[1])
     p2 <- str_split_1(filename, pattern = "_")[2]
 
-    # create pvalue significance label
-    toPlot$pval_sig <- ifelse(toPlot$pval1 < 0.05, 
-                            ifelse(toPlot$pval2 < 0.05, "Both PSets", paste(p1, "Only")),
-                        ifelse(toPlot$pval2 < 0.05, paste(p2, "Only"), "Neither PSet"))
-    toPlot$pval_sig <- factor(toPlot$pval_sig, levels = c("Both PSets", paste(p1, "Only"), paste(p2, "Only"), "Neither PSet"))
+    # create fdr significance label
+    toPlot$fdr_sig <- ifelse(toPlot$fdr1 < 0.05, 
+                            ifelse(toPlot$fdr2 < 0.05, "Both PSets", paste(p1, "Only")),
+                        ifelse(toPlot$fdr2 < 0.05, paste(p2, "Only"), "Neither PSet"))
+    toPlot$fdr_sig <- factor(toPlot$fdr_sig, levels = c("Both PSets", paste(p1, "Only"), paste(p2, "Only"), "Neither PSet"))
 
     # label overlapping associations
     toPlot$to_label <- ifelse(toPlot$pair %in% to_label, gsub(".*_", "", toPlot$pair), "")
-    toPlot$to_label <- ifelse(toPlot$pval_sig != "Both PSets", "", toPlot$to_label)
+    toPlot$to_label <- ifelse(toPlot$fdr_sig != "Both PSets", "", toPlot$to_label)
 
     # set palette for plotting
     pal = c("#FCD0A1", "#63535B", "#53917E", "grey")
 
     # plot scatter plot
     png(paste0(filename, ".png"), width = 6, height = 4, res = 600, units = "in")
-    print({ggplot(toPlot, aes(x = estimate1, y = estimate2, label = to_label)) + 
-        geom_point(data = toPlot, aes(x = estimate1, y = estimate2, color = pval_sig), shape = 16) +
-        geom_point(data = toPlot[toPlot$pval_sig == paste(p1, "Only"),], aes(x = estimate1, y = estimate2), size = 2, shape = 21, fill = pal[2]) +
-        geom_point(data = toPlot[toPlot$pval_sig == paste(p2, "Only"),], aes(x = estimate1, y = estimate2), size = 2, shape = 21, fill = pal[3]) +
-        geom_point(data = toPlot[toPlot$pval_sig == "Both PSets", ], aes(x = estimate1, y = estimate2), size = 2.5, shape = 21, fill = pal[1]) +
+    print({ggplot(toPlot, aes(x = diff1, y = diff2, label = to_label)) + 
+        geom_point(data = toPlot, aes(x = diff1, y = diff2, color = fdr_sig), shape = 16) +
+        geom_point(data = toPlot[toPlot$fdr_sig == paste(p1, "Only"),], aes(x = diff1, y = diff2), size = 2, shape = 21, fill = pal[2]) +
+        geom_point(data = toPlot[toPlot$fdr_sig == paste(p2, "Only"),], aes(x = diff1, y = diff2), size = 2, shape = 21, fill = pal[3]) +
+        geom_point(data = toPlot[toPlot$fdr_sig == "Both PSets", ], aes(x = diff1, y = diff2), size = 2.5, shape = 21, fill = pal[1]) +
         geom_text_repel(box.padding = 0.5, max.overlaps = Inf) +
         scale_color_manual("P-Value < 0.05", values = pal) +
         theme_classic() + guides(color = guide_legend(override.aes = list(size = 3))) +
         theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5)) +
-        labs(x = paste(p1, metric), y = paste(p2, metric))})
+        labs(x = paste(p1, "Average Difference in AAC"), y = paste(p2, "Average Difference in AAC"))})
     dev.off()
 }
 
 
 # binarized dr
-gcsi_ccle_b <- corr_pset(gcsi_bin_dr, ccle_bin_dr, "bin", "../results/figures/figure9/gCSI_CCLE_bin0")
-gcsi_gdsc_b <- corr_pset(gcsi_bin_dr, gdsc_bin_dr, "bin", "../results/figures/figure9/gCSI_GDSC_bin0")
-ccle_gdsc_b <- corr_pset(ccle_bin_dr, gdsc_bin_dr, "bin", "../results/figures/figure9/CCLE_GDSC_bin0")
+corr_pset(gcsi_bin_dr, ccle_bin_dr, "../results/figures/figure9/gCSI_CCLE_bin0")
+corr_pset(gcsi_bin_dr, gdsc_bin_dr, "../results/figures/figure9/gCSI_GDSC_bin0")
+corr_pset(ccle_bin_dr, gdsc_bin_dr, "../results/figures/figure9/CCLE_GDSC_bin0")
 
 
 ############################################################
