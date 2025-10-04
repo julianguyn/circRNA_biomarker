@@ -177,7 +177,7 @@ robust_norm <- function(df) {
         # avoid division by zero in case IQR is 0
         if (iqr == 0) {
             df[non_zero, circ] <- 0  # or NA if preferred
-            print(paste("IQR issue for"), circ)
+            print(paste("IQR issue for", circ))
         } else {
             df[non_zero, circ] <- (exp[non_zero] - med) / iqr
         }
