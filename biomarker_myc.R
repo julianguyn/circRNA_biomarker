@@ -79,6 +79,7 @@ dev.off()
 ############################################################
 
 df <- df[df$prop == 100,] #n=508
+save(df, file = "../results/data/circ_mapped_to_myc.RData")
 
 # define function to filter circ exp dataframes
 filter_myc <- function(circ) {
@@ -116,6 +117,55 @@ save(ciri_gcsi, ciri_gdsc, ciri_ccle,
 
 
 ############################################################
+# Robust normalization of circRNA expression
+############################################################
+
+# function to count and remove low expressed transcripts
+# function from combine_pipeline_counts.R
+robust_norm <- function(df) {
+
+    df <- na.omit(df)
+    for (circ in colnames(df)) {
+
+        exp <- df[[circ]]
+        non_zero <- exp != 0
+        
+        # median and IQR on non-zero values only
+        med <- median(exp[non_zero])
+        iqr <- IQR(exp[non_zero])
+        
+        # avoid division by zero in case IQR is 0
+        if (iqr == 0 || is.na(iqr)) {
+            df[non_zero, circ] <- 0  # or NA if preferred
+            if (is.na(iqr)) {
+                print(paste("No expression for", circ))
+            } else {
+                print(paste("Issue with IQR for", circ))
+            }
+        } else {
+            df[non_zero, circ] <- (exp[non_zero] - med) / iqr
+        }
+    }
+    return(df)
+}
+
+ciri_gcsi <- robust_norm(ciri_gcsi)
+ciri_gdsc <- robust_norm(ciri_gdsc)
+ciri_ccle <- robust_norm(ciri_ccle)
+
+circ_gcsi <- robust_norm(circ_gcsi)
+circ_gdsc <- robust_norm(circ_gdsc)
+circ_ccle <- robust_norm(circ_ccle)
+
+cfnd_gcsi <- robust_norm(cfnd_gcsi)
+cfnd_gdsc <- robust_norm(cfnd_gdsc)
+cfnd_ccle <- robust_norm(cfnd_ccle)
+
+fcrc_gcsi <- robust_norm(fcrc_gcsi)
+fcrc_gdsc <- robust_norm(fcrc_gdsc)
+fcrc_ccle <- robust_norm(fcrc_ccle)
+
+############################################################
 # Load in drug response data and subset
 ############################################################
 
@@ -148,11 +198,9 @@ binary_dr <- function(counts_df, drug_df, label) {
     
     # initiate row count
     row = 1
-    print(paste("Number of features:", length(features)))
 
     for (i in seq_along(features)) {
         
-        print(i)
         feature <- features[i]
 
         # binarize transcript expression by median (0)
@@ -201,6 +249,9 @@ binary_dr <- function(counts_df, drug_df, label) {
         }
     }
     combinations$FDR <- p.adjust(combinations$pval, method = "BH")
+    print(label)
+    print(nrow(combinations))
+    print(nrow(combinations[combinations$FDR < 0.05,]))
 
     # format dataframe for plotting 
     combinations <- combinations[order(combinations$W, decreasing = T),]
@@ -211,28 +262,29 @@ binary_dr <- function(counts_df, drug_df, label) {
 }
 
 
-ciri_gcsi_bin <- binary_dr(ciri_gcsi, gcsi_sen, "CIRI_gCSI")
-ciri_gdsc_bin <- binary_dr(ciri_gdsc, gdsc_sen, "CIRI_GDSC")
-ciri_ccle_bin <- binary_dr(ciri_ccle, ctrp_sen, "CIRI_CCLE")
+ciri_gcsi_bin <- binary_dr(ciri_gcsi, gcsi_sen, "CIRI_gCSI") #14, 0 FDR<0.05
+ciri_gdsc_bin <- binary_dr(ciri_gdsc, gdsc_sen, "CIRI_GDSC") #73, 12 FDR<0.05
+ciri_ccle_bin <- binary_dr(ciri_ccle, ctrp_sen, "CIRI_CCLE") #72, 3 FDR<0.05
 
-circ_gcsi_bin <- binary_dr(circ_gcsi, gcsi_sen, "CIRC_gCSI")
-circ_gdsc_bin <- binary_dr(circ_gdsc, gdsc_sen, "CIRC_GDSC")
-circ_ccle_bin <- binary_dr(circ_ccle, ctrp_sen, "CIRC_CCLE")
+circ_gcsi_bin <- binary_dr(circ_gcsi, gcsi_sen, "CIRC_gCSI") #14, 1 FDR<0.05
+circ_gdsc_bin <- binary_dr(circ_gdsc, gdsc_sen, "CIRC_GDSC") #73, 13 FDR<0.05
+circ_ccle_bin <- binary_dr(circ_ccle, ctrp_sen, "CIRC_CCLE") #72, 1 FDR<0.05
 
-cfnd_gcsi_bin <- binary_dr(cfnd_gcsi, gcsi_sen, "CFND_gCSI")
-cfnd_gdsc_bin <- binary_dr(cfnd_gdsc, gdsc_sen, "CFND_GDSC")
-cfnd_ccle_bin <- binary_dr(cfnd_ccle, ctrp_sen, "CFND_CCLE")
+cfnd_gcsi_bin <- binary_dr(cfnd_gcsi, gcsi_sen, "CFND_gCSI") #14, 0 FDR<0.05
+cfnd_gdsc_bin <- binary_dr(cfnd_gdsc, gdsc_sen, "CFND_GDSC") #73, 11 FDR<0.05
+cfnd_ccle_bin <- binary_dr(cfnd_ccle, ctrp_sen, "CFND_CCLE") #72, 33 FDR<0.05
 
-fcrc_gcsi_bin <- binary_dr(fcrc_gcsi, gcsi_sen, "FCRC_gCSI")
-fcrc_gdsc_bin <- binary_dr(fcrc_gdsc, gdsc_sen, "FCRC_GDSC")
-fcrc_ccle_bin <- binary_dr(fcrc_ccle, ctrp_sen, "FCRC_CCLE")
+fcrc_gcsi_bin <- binary_dr(fcrc_gcsi, gcsi_sen, "FCRC_gCSI") #14, 4 FDR<0.05
+fcrc_gdsc_bin <- binary_dr(fcrc_gdsc, gdsc_sen, "FCRC_GDSC") #73, 9 FDR<0.05
+fcrc_ccle_bin <- binary_dr(fcrc_ccle, ctrp_sen, "FCRC_CCLE") #72, 50 FDR<0.05
 
 # save dataframes
 save(ciri_gcsi_bin, ciri_gdsc_bin, ciri_ccle_bin,
      circ_gcsi_bin, circ_gdsc_bin, circ_ccle_bin,
      cfnd_gcsi_bin, cfnd_gdsc_bin, cfnd_ccle_bin,
      fcrc_gcsi_bin, fcrc_gdsc_bin, fcrc_ccle_bin,
-     file = "../results/data/circ_myc_avg_bindr.RData")
+     file = "../results/data/circ_myc_norm_dr.RData")
+#     file = "../results/data/circ_myc_avg_bindr.RData")
 #     file = "../results/data/circ_myc_bindr.RData")
 
 
@@ -257,6 +309,7 @@ plot_volcano <- function(bin_dr) {
                         aes(x = diff, y = -log(FDR), label = to_label),
                         force_pull = 0.5, max.overlaps = Inf, force = 5,
                         box.padding = 0.4) +
+        geom_hline(yintercept = -log(0.05), linetype = "dotted") +
         scale_color_manual(
             values = c("CFND_CCLE" = "#9393cfff", "FCRC_CCLE" = "#271D80", "FCRC_GDSC" = "#6F1E27"), 
             labels = c("CFND_CCLE" = "CCLE (circRNA_finder)", "FCRC_CCLE" = "CCLE (find_circ)", "FCRC_GDSC" = "GDSC2 (find_circ)"),
@@ -281,8 +334,8 @@ toPlot$temp <- paste(toPlot$pair, toPlot$label, sep = "_")
 to_keep <- toPlot[toPlot$FDR < 0.05,]$temp
 toPlot$to_label <- ifelse(toPlot$temp %in% to_keep, as.character(toPlot$Drug), "")
 
-# keep only associations with magnitude difference > 0.03
-toPlot[abs(toPlot$diff) < 0.07,]$to_label <- ""
+# keep only associations with magnitude difference > 0.08
+toPlot[abs(toPlot$diff) < 0.08,]$to_label <- ""
 
 # label by significance
 toPlot$Label <- ifelse(toPlot$FDR < 0.05, "FDR\nSignificant", "Not FDR\nSignificant")
@@ -292,8 +345,8 @@ toPlot$label <- factor(toPlot$label, levels = c("CIRI_gCSI", "CIRC_gCSI", "CFND_
                                                 "CIRI_GDSC", "CIRC_GDSC", "CFND_GDSC", "FCRC_GDSC"))
 
 
-#png("../results/figures/figure9/myc/volcano.png", width = 6, height = 4, res = 600, units = "in")
-png("../results/figures/figure9/myc/myc_avg_volcano_2.png", width = 7, height = 5, res = 600, units = "in")
+png("../results/figures/figure9/myc/volcano.png", width = 6, height = 4, res = 600, units = "in")
+#png("../results/figures/figure9/myc/myc_avg_volcano_2.png", width = 7, height = 5, res = 600, units = "in")
 plot_volcano(toPlot)
 dev.off()
 
@@ -305,26 +358,26 @@ dev.off()
 # save significant MYC drug associations
 drugs <- toPlot[!toPlot$to_label == "",]$Drug |> as.character() |> unique()
 
-# function to create dataframe for plotting
+# function to create dataframe for plotting (adapted from biomarker_analysis.R)
 formatMYC <- function(drug_df, label) {
 
     # subset bin results
     subset <- toPlot[toPlot$label == label,]
 
     # create dataframe for plotting
-    df <- data.frame(Drug = drugs, Label = label, Status = NA, W = NA)
+    df <- data.frame(Drug = drugs, Label = label, Status = NA, Diff = NA)
 
     for (i in seq_along(drugs)) {
         drug = df$Drug[i]
 
-        if (!drug %in% rownames(drug_df)) {
-            df$Status[i] <- ""
+        if (!drug %in% rownames(drug_df)) { # drug no in PSet
+            df$Status[i] <- NA
         } else if (!drug %in% subset$Drug) {
-            df$W[i] <- 0
-            df$Status[i] <- "NA"
+            df$Diff[i] <- 0
+            df$Status[i] <- "NE"
         } else {
 
-            df$W[i] <- subset[subset$Drug == drug,]$W   # P-Val > 0.05
+            df$Diff[i] <- subset[subset$Drug == drug,]$diff   # P-Val > 0.05
             df$Status[i] <- ""
 
             # check p-value and FDR
@@ -351,13 +404,13 @@ sig_drug$Drug <- factor(sig_drug$Drug, levels = unique(rev(sig_drug$Drug[order(s
 
 # plot overlapping biomarkers
 png("../results/figures/figure9/myc/myc_overlap.png", width = 6.5, height = 6, res = 600, units = "in")
-ggplot(sig_drug, aes(x = PSet, y = Drug, fill = W)) +
+ggplot(sig_drug, aes(x = PSet, y = Drug, fill = Diff)) +
   geom_tile() +
   geom_text(aes(label = Status), size = 3) +
   facet_grid(. ~ Pipeline, scales = "free_x", space = "free_x") +
-  labs(fill = "Wilcoxon Rank\nSum Test\nStatistic", y = "Drug", x = "PSet (Pipeline)") +
+  labs(fill = "Average\nDifference\nin AAC", y = "Drug", x = "PSet") +
   theme_classic() +
-  scale_fill_gradient2(low = 'white', mid = '#E1E7DF', high = '#878E76', na.value="white")+
+  scale_fill_gradient2(low = "#9D3737", mid = "white", high = "#3670A0", midpoint = 0, na.value = "grey") +
   theme(
     strip.background = element_rect(fill = "#f0f0f0"),
     panel.border = element_rect(color = "black", fill = NA, size = 0.5),
