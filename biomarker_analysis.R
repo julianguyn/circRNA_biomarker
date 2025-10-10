@@ -337,10 +337,10 @@ format_bin <- function(bin_df, counts_df, drug_df) {
             df$Status[i] <- ""
 
             # check p-value and FDR
-            if (subset[subset$pair == pair,]$pval < 0.05) { #P-Val < 0.05
+            if (subset[subset$pair == pair,]$FDR_drug < 0.1) { #FDR < 0.1
                 df$Status[i] <- "*"
             }
-            if (subset[subset$pair == pair,]$FDR_drug < 0.1) { #FDR < 0.1
+            if (subset[subset$pair == pair,]$FDR_drug < 0.05) { #FDR < 0.05
                 df$Status[i] <- "**"
             }
         }
@@ -356,11 +356,18 @@ gdsc_bin_dr$PSet <- "GDSC"
 toPlot <- rbind(format_bin(gcsi_bin_dr, gcsi_df, gcsi_sen), 
                 format_bin(ccle_bin_dr, ccle_df, ctrp_sen), 
                 format_bin(gdsc_bin_dr, gdsc_df, gdsc_sen))
-toPlot$Pair <- factor(toPlot$Pair, levels = rev(top_biomarkers))
 toPlot$PSet <- factor(toPlot$PSet, levels = c("gCSI", "CCLE", "GDSC"))
 
+# order by drug per PSet
+order_toplot <- c(
+    top_biomarkers[1:20][order(top_biomarkers[1:20])],
+    top_biomarkers[21:40][order(top_biomarkers[21:40])],
+    top_biomarkers[41:60][order(top_biomarkers[41:60])]
+)
+toPlot$Pair <- factor(toPlot$Pair, levels = rev(order_toplot))
+
 # create labels
-toPlot$label <- paste(rep(1:20), toPlot$Drug, sep = ": ")
+toPlot$label <- paste(toPlot$Drug, rep(1:20), sep = ": ")
 
 # set up values to colour 
 toPlot$Diff[is.na(toPlot$Status)] <- NA
