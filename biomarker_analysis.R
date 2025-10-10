@@ -367,28 +367,26 @@ order_toplot <- c(
 toPlot$Pair <- factor(toPlot$Pair, levels = rev(order_toplot))
 
 # create labels
-toPlot$label <- paste(toPlot$Drug, rep(1:20), sep = ": ")
+toPlot$label <- paste(toPlot$Drug, rep(1:20), sep = ":    ")
 
 # set up values to colour 
 toPlot$Diff[is.na(toPlot$Status)] <- NA
 toPlot$Diff[which(toPlot$Status == "ND")] <- 0
 
 # plot overlapping biomarkers
-png("../results/figures/figure9/top10_bin0_biomarkers.png", width = 5, height = 10, res = 600, units = "in")
+png("../results/figures/figure9/top10_bin0_biomarkers.png", width = 6, height = 10, res = 600, units = "in")
 ggplot(toPlot, aes(x = PSet, y = Pair, fill = Diff)) + 
     geom_tile() +
     geom_hline(yintercept = c(20.5, 40.5), linetype = "dashed") +
     geom_text(aes(label = Status), size = 3) +
     scale_y_discrete(labels = setNames(toPlot$label, toPlot$Pair)) +
-    labs(fill = "Average\nDifference\nin AAC", y = "Drug-CircRNA Pair", x = "PSet") + 
+    labs(fill = "Δ Mean AAC \n(Expression vs\nNon-expression)", y = "Drug-CircRNA Pair", x = "PSet") + 
     theme_classic() + 
     scale_fill_gradient2(low = "#9D3737", mid = "white", high = "#3670A0", midpoint = 0, na.value = "grey") +
     theme(
         panel.border = element_rect(color = "black", fill = NA, size = 0.5), 
         legend.title = element_text(size = 9))
 dev.off()
-
-# test push git
 
 ############################################################
 # Pair-wise correlation plots across PSets
