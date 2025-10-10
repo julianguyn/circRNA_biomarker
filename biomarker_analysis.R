@@ -8,6 +8,7 @@ suppressPackageStartupMessages({
     library(stringr)
     library(RColorBrewer)
     library(ggrepel)
+    library(ggsignif)
 })
 
 
@@ -422,7 +423,7 @@ toPlot <- rbind(label_exp(gcsi_df, gcsi_sen, "gCSI"),
 toPlot$Dataset <- factor(toPlot$Dataset, levels = c("gCSI", "CCLE", "GDSC"))
 
 # plot AAC by circ expression
-png("../results/figures/figure9/example_biomarker.png", width = 7.5, height = 5.5, res = 600, units = "in")
+png("../results/figures/figure9/example_biomarker.png", width = 7, height = 5.5, res = 600, units = "in")
 ggplot(toPlot, aes(x = Dataset, y = AAC, fill = Label)) + 
     geom_boxplot() +
     theme_classic() + 
@@ -469,6 +470,11 @@ corr_pset <- function(pset1, pset2, filename) {
     res <- cor.test(toPlot$diff1, toPlot$diff2, method = "spearman", alternative = "two.sided")
     print(res)
 
+    # compute spearman correlation for those with FDR < 1 in at least one dataset
+    to_keep <- c(toPlot$pair[toPlot$fdr1 < 0.1], toPlot$pair[toPlot$fdr2 < 0.1]) |> unique()
+    res <- cor.test(toPlot$diff1[toPlot$pair %in% to_keep], toPlot$diff2[toPlot$pair %in% to_keep], method = "spearman", alternative = "two.sided")
+    print(res)
+
     # create pset labels
     p1 <- gsub("../results/figures/figure9/", "", str_split_1(filename, pattern = "_")[1])
     p2 <- str_split_1(filename, pattern = "_")[2]
@@ -479,10 +485,6 @@ corr_pset <- function(pset1, pset2, filename) {
                         ifelse(toPlot$fdr2 < 0.05, paste(p2, "Only"), "Neither Dataset"))
     toPlot$fdr_sig <- factor(toPlot$fdr_sig, levels = c("Both Datasets", paste(p1, "Only"), paste(p2, "Only"), "Neither Dataset"))
 
-    # label overlapping associations
-    toPlot$to_label <- ifelse(toPlot$pair %in% to_label, gsub(".*_", "", toPlot$pair), "")
-    toPlot$to_label <- ifelse(toPlot$fdr_sig != "Both Datasets", "", toPlot$to_label)
-
     # set palette for plotting
     group_names <- c("Both Datasets", paste(p1, "Only"), paste(p2, "Only"), "Neither Dataset")
     col <- c("#FCD0A1", "#63535B", "#53917E", "grey")
@@ -490,18 +492,17 @@ corr_pset <- function(pset1, pset2, filename) {
     
     # plot scatter plot
     png(paste0(filename, ".png"), width = 6, height = 4, res = 600, units = "in")
-    print({ggplot(toPlot, aes(x = diff1, y = diff2, label = to_label)) + 
+    print({ggplot(toPlot, aes(x = diff1, y = diff2)) + 
         geom_point(data = toPlot, aes(x = diff1, y = diff2, color = fdr_sig), shape = 16) +
         geom_point(data = toPlot[toPlot$fdr_sig == paste(p1, "Only"),], aes(x = diff1, y = diff2), size = 2, shape = 21, fill = pal[2]) +
         geom_point(data = toPlot[toPlot$fdr_sig == paste(p2, "Only"),], aes(x = diff1, y = diff2), size = 2, shape = 21, fill = pal[3]) +
         geom_point(data = toPlot[toPlot$fdr_sig == "Both Datasets", ], aes(x = diff1, y = diff2), size = 2.5, shape = 21, fill = pal[1]) +
-        geom_text_repel(box.padding = 0.5, max.overlaps = Inf) +
         geom_vline(xintercept = 0, linetype = "dashed") +
         geom_hline(yintercept = 0, linetype = "dashed") +
         scale_color_manual("FDR < 0.1", values = pal) +
         theme_classic() + guides(color = guide_legend(override.aes = list(size = 3))) +
         theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5)) +
-        labs(x = paste(p1, "Average Difference in AAC"), y = paste(p2, "Average Difference in AAC"))})
+        labs(x = paste("Δ Mean AAC in", p1), y = paste("Δ Mean AAC in", p2))})
     dev.off()
 }
 
