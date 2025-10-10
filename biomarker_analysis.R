@@ -389,6 +389,58 @@ ggplot(toPlot, aes(x = PSet, y = Pair, fill = Diff)) +
 dev.off()
 
 ############################################################
+# Visualize Vorinostat_chr8.61680967.61684188
+############################################################
+
+circ <- "chr8.61680967.61684188"
+drug <- "Vorinostat"
+
+# helper function to label high vs low circ exp
+label_exp <- function(counts_df, drug_df, dataset) {
+
+    # binarize transcript expression by median
+    subset <- counts_df[,which(colnames(counts_df) == circ), drop = FALSE]
+    high_exp <- rownames(subset[complete.cases(subset), , drop = FALSE])
+    low_exp <- rownames(subset)[-which(rownames(subset) %in% high_exp)]
+
+    # get AAC for each expression group
+    high = drug_df[rownames(drug_df) == drug,colnames(drug_df) %in% high_exp] |> as.numeric()
+    low = drug_df[rownames(drug_df) == drug,colnames(drug_df) %in% low_exp] |> as.numeric()
+
+    # return dataframe
+    df <- data.frame(AAC = c(high, low),
+                     Label = c(rep("Expression", length(high)), rep("Non-Expression", length(low))))
+    df$Dataset <- dataset
+    return(df)
+}
+
+toPlot <- rbind(label_exp(gcsi_df, gcsi_sen, "gCSI"),
+                label_exp(ccle_df, ctrp_sen, "CCLE"),
+                label_exp(gdsc_df, gdsc_sen, "GDSC"))
+
+# format dataframe
+toPlot$Dataset <- factor(toPlot$Dataset, levels = c("gCSI", "CCLE", "GDSC"))
+
+# plot AAC by circ expression
+png("../results/figures/figure9/example_biomarker.png", width = 7.5, height = 5.5, res = 600, units = "in")
+ggplot(toPlot, aes(x = Dataset, y = AAC, fill = Label)) + 
+    geom_boxplot() +
+    theme_classic() + 
+    scale_fill_manual(values = c("#586994", "#937D64")) +
+    geom_signif(
+        y_position = c(0.47, 0.49, 0.54), 
+        xmin = c(0.8, 1.8, 2.8), xmax = c(1.2, 2.2, 3.2),
+        annotation = c("*", "**", "**"),
+        tip_length = 0.01,
+        textsize = 4) +
+    ylim(c(-0.01, 0.6)) +
+    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+          legend.key.size = unit(0.5, 'cm'),
+          legend.title = element_text(size = 9)) +
+    labs(y = "Vorinostat Response (AAC)", fill = "Expression of\nchr8.61680967.61684188")
+dev.off()
+
+############################################################
 # Pair-wise correlation plots across PSets
 ############################################################
 
