@@ -313,11 +313,11 @@ plot_volcano <- function(bin_dr) {
         scale_color_manual(
             values = c("CFND_CCLE" = "#9393cfff", "FCRC_CCLE" = "#271D80", "FCRC_GDSC" = "#6F1E27"), 
             labels = c("CFND_CCLE" = "CCLE (circRNA_finder)", "FCRC_CCLE" = "CCLE (find_circ)", "FCRC_GDSC" = "GDSC2 (find_circ)"),
-            name = "PSet (Pipeline)") +
+            name = "Dataset (Pipeline)") +
         theme_classic() + xlim(-x, x) +
         theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5),
                 legend.key.size = unit(0.5, 'cm')) +
-        labs(x = "Difference in Average AAC", y = "-log(FDR)")
+        labs(x = "Δ Mean AAC (circMYC Expression vs Non-Expression)", y = "-log(FDR)")
     return(p)
 
 }
@@ -403,18 +403,17 @@ sig_drug$PSet <- factor(sig_drug$PSet, levels = c("gCSI", "CCLE", "GDSC"))
 sig_drug$Drug <- factor(sig_drug$Drug, levels = unique(rev(sig_drug$Drug[order(sig_drug$Drug)])))
 
 # plot overlapping biomarkers
-png("../results/figures/figure9/myc/myc_overlap.png", width = 6.5, height = 6, res = 600, units = "in")
+png("../results/figures/figure9/myc/myc_overlap.png", width = 8.5, height = 5, res = 600, units = "in")
 ggplot(sig_drug, aes(x = PSet, y = Drug, fill = Diff)) +
   geom_tile() +
   geom_text(aes(label = Status), size = 3) +
   facet_grid(. ~ Pipeline, scales = "free_x", space = "free_x") +
-  labs(fill = "Average\nDifference\nin AAC", y = "Drug", x = "PSet") +
+  labs(fill = "Δ Mean AAC\n(circMYC Expression\nvs Non-Expression)", y = "Drug", x = "Dataset") +
   theme_classic() +
   scale_fill_gradient2(low = "#9D3737", mid = "white", high = "#3670A0", midpoint = 0, na.value = "grey") +
   theme(
     strip.background = element_rect(fill = "#f0f0f0"),
     panel.border = element_rect(color = "black", fill = NA, size = 0.5),
-    axis.text.x = element_text(angle = 90, hjust = 1),
     legend.title = element_text(size = 9)
 )
 dev.off()
