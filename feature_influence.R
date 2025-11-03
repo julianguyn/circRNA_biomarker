@@ -8,82 +8,10 @@ suppressPackageStartupMessages({
     library(tidyverse)
     library(ggh4x)
     library(RColorBrewer)
+    library(PharmacoGx)
 })
 
 set.seed(200)  
-
-
-############################################################
-# Load in data
-############################################################
-
-# load in stability data
-load("../results/data/temp/gene_isoform_stability.RData")
-load("../results/data/temp/circ_stability2.RData")
-
-# load in circRNA features
-load("../results/data/circ_stability_gcsi_features2.RData")
-load("../results/data/circ_stability_ccle_features2.RData")
-load("../results/data/circ_stability_gdsc_features2.RData")
-
-
-############################################################
-# Format circRNA dataframes
-############################################################
-
-# function to format circRNA stability dataframes
-c_stability <- function(stability, gcsi, ccle, gdsc) {
-
-  # reformat stability dataframe
-  stability <- reshape2::dcast(stability, transcript ~ pair, value.var = "si")
-  colnames(stability) <- c("transcript", "gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")
-  
-  # get median expression
-  stability$gcsi_median <- stability$ccle_median <- stability$gdsc_median <- 0
-  for (i in seq_along(stability$transcript)) {
-    transcript <- stability$transcript[i]
-
-    if (transcript %in% rownames(gcsi)) {
-      stability$gcsi_median[i] <- gcsi$MedianExp[rownames(gcsi) == transcript]
-    }
-    if (transcript %in% rownames(ccle)) {
-      stability$ccle_median[i] <- ccle$MedianExp[rownames(ccle) == transcript]
-    }
-    if (transcript %in% rownames(gdsc)) {
-      stability$gdsc_median[i] <- gdsc$MedianExp[rownames(gdsc) == transcript]
-    }
-  }
-
-  # get GC, nexons, and length
-  feats <- data.frame(transcript = c(rownames(gcsi), rownames(ccle), rownames(gdsc)),
-                      gc = c(gcsi$GC, ccle$GC, gdsc$GC),
-                      nexons = c(gcsi$NExons, ccle$NExons, gdsc$NExons),
-                      length = c(gcsi$Length, ccle$Length, gdsc$Length))
-  feats <- unique(feats)
-  feats <- feats[match(stability$transcript, feats$transcript),]
-  
-  stability$gc <- feats$gc
-  stability$n_exon <- feats$nexons
-  stability$length <- feats$length
-
-  return(stability)
-} 
-
-ciri_stability <- c_stability(ciri_stability, ciri_gcsi_ft, ciri_ccle_ft, ciri_gdsc_ft)
-circ_stability <- c_stability(circ_stability, circ_gcsi_ft, circ_ccle_ft, circ_gdsc_ft)
-cfnd_stability <- c_stability(cfnd_stability, cfnd_gcsi_ft, cfnd_ccle_ft, cfnd_gdsc_ft)
-fcrc_stability <- c_stability(fcrc_stability, fcrc_gcsi_ft, fcrc_ccle_ft, fcrc_gdsc_ft)
-
-# save files
-write.csv(ciri_stability, file = "../results/data/temp/ciri_stability.csv", quote = F, row.names = F)
-write.csv(circ_stability, file = "../results/data/temp/circ_stability.csv", quote = F, row.names = F)
-write.csv(cfnd_stability, file = "../results/data/temp/cfnd_stability.csv", quote = F, row.names = F)
-write.csv(fcrc_stability, file = "../results/data/temp/fcrc_stability.csv", quote = F, row.names = F)
-
-
-############################################################
-# FROM HERE: RUN FeatureInfluence.ipynb
-############################################################
 
 
 ############################################################
@@ -100,11 +28,14 @@ load_pair <- function(path, pair, filetype) {
     lm <- read.csv(paste0(path, pair, "lm.csv"))
     # remove brackets from Pearson
     lm$Pearson <- gsub("\\[", "", gsub("]", "", lm$Pearson)) |> as.numeric()
-    lm$alpha <- lm$max_iter <- NA
+    lm$l1_ratio <- lm$alpha <- lm$max_iter <- NA
     ls <- read.csv(paste0(path, pair, "lasso.csv"))
+    ls$l1_ratio <- NA
+    en <- read.csv(paste0(path, pair, "en.csv"))
+    en$Model <- "ElasticNet"
 
     # merge data files
-    df <- rbind(lm, ls)
+    df <- rbind(lm, ls, en)
     df$pair <- gsub("/", "", pair)
   }
 
@@ -114,10 +45,12 @@ load_pair <- function(path, pair, filetype) {
     # load in data files
     lm <- read.csv(paste0(path, pair, "lm_features.csv"))
     ls <- read.csv(paste0(path, pair, "lasso_features.csv"))
+    en <- read.csv(paste0(path, pair, "en_features.csv"))
 
     # add in labels
     lm$model <- "Linear"
     ls$model <- "LASSO"
+    en$model <- "ElasticNet"
 
     # merge data files
     df <- rbind(lm, ls)
@@ -133,24 +66,21 @@ load_pair <- function(path, pair, filetype) {
 # function to load in results
 load_model <- function(label, filetype) {
 
-  path = paste0("results/data/feature_influence/multivariable/", label)
+  path <- paste0("results/data/feature_influence/multivariable/", label)
 
-  # process model files
-  if (filetype == "model") {
-    df <- rbind(
+  df <- switch(
+    filetype,
+    model = rbind(
       load_pair(path, "/gcsi_ccle/", "model"),
       load_pair(path, "/gcsi_gdsc/", "model"),
       load_pair(path, "/gdsc_ccle/", "model")
-    )
-  }
-  # process feature files
-  if (filetype == "features") {
-    df <- rbind(
+    ),
+    features = rbind(
       load_pair(path, "/gcsi_ccle/", "features"),
       load_pair(path, "/gcsi_gdsc/", "features"),
       load_pair(path, "/gdsc_ccle/", "features")
     )
-  }
+  )
   df$label <- label
   return(df)
 }
@@ -161,7 +91,7 @@ load_model <- function(label, filetype) {
 ############################################################
 
 # set up palette for plotting
-pal = c("#DACCAB", "#C78B76", "#9D3737")
+pal = c("#DACCAB", "#C78B76", "#9D3737", "gray")
 
 # set up model results
 model_df <- rbind(
@@ -217,9 +147,9 @@ compile_res <- function(model) {
     group_by(cat) %>%
     summarise(
       avg_spearman = mean(Spearman, na.rm = TRUE),
-      sd_spearman  = sd(Spearman, na.rm = TRUE),
+      ci_spearman  = sd(Spearman, na.rm = TRUE)/ sqrt(5) * 1.96,
       avg_pearson  = mean(Pearson, na.rm = TRUE),
-      sd_pearson   = sd(Pearson, na.rm = TRUE),
+      ci_pearson   = sd(Pearson, na.rm = TRUE)/ sqrt(5) * 1.96,
       max_spearman = Spearman[which.max(abs(Spearman))],
       max_pearson  = Pearson[which.max(abs(Pearson))],
       .groups = "drop"
@@ -243,10 +173,12 @@ compile_res <- function(model) {
 # compile results
 lm_compile <- compile_res("Linear")
 ls_compile <- compile_res("LASSO")
+en_compile <- compile_res("ElasticNet")
 
 # write results
 write.csv(lm_compile, file = "results/data/feature_influence/multivariable/lm.csv", quote = F, row.names = T)
 write.csv(ls_compile, file = "results/data/feature_influence/multivariable/LASSO.csv", quote = F, row.names = T)
+write.csv(en_compile, file = "results/data/feature_influence/multivariable/en.csv", quote = F, row.names = T)
 
 
 ############################################################
@@ -279,11 +211,15 @@ plot_model("Linear", "Spearman")
 plot_model("Linear", "Spearman", "free_y")
 plot_model("LASSO", "Spearman")
 plot_model("LASSO", "Spearman", "free_y")
+plot_model("ElasticNet", "Spearman")
+plot_model("ElasticNet", "Spearman", "free_y")
 
 plot_model("Linear", "Pearson")
 plot_model("Linear", "Pearson", "free_y")
 plot_model("LASSO", "Pearson")
 plot_model("LASSO", "Pearson", "free_y")
+plot_model("ElasticNet", "Pearson")
+plot_model("ElasticNet", "Pearson", "free_y")
 
 
 ############################################################
@@ -298,25 +234,34 @@ plot_model <- function(df, model, corr, scales = "fixed") {
   # format columns
   if (corr == "Spearman") {
     colnames(toPlot)[colnames(toPlot) == "avg_spearman"] <- "corr"
-    colnames(toPlot)[colnames(toPlot) == "sd_spearman"] <- "sd"
+    colnames(toPlot)[colnames(toPlot) == "ci_spearman"] <- "ci"
   }
   if (corr == "Pearson") {
     colnames(toPlot)[colnames(toPlot) == "avg_pearson"] <- "corr"
-    colnames(toPlot)[colnames(toPlot) == "sd_pearson"] <- "sd"
+    colnames(toPlot)[colnames(toPlot) == "ci_pearson"] <- "ci"
   }
   toPlot$corr <- as.numeric(toPlot$corr)
-  toPlot$sd <- as.numeric(toPlot$sd)
+  toPlot$ci <- as.numeric(toPlot$ci)
 
-  toPlot$pair <- factor(toPlot$pair, 
-    levels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE"))
+  toPlot$pair <- gsub(".*-", "", rownames(toPlot))
+  toPlot$label <- gsub("-.*", "", rownames(toPlot))
+
   toPlot$label <- factor(toPlot$label, 
     levels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 
+  # set fill colours for CI past zero
+  toPlot <- toPlot %>%
+    mutate(crosses_zero = (corr - ci <= 0 & corr + ci >= 0))
+  toPlot <- toPlot %>%
+    mutate(fill = ifelse(crosses_zero, "Non-Significant", pair))
+  toPlot$fill[is.na(toPlot$fill)] <- "Non-Significant"
+  toPlot$fill <- factor(toPlot$fill, 
+    levels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE", "Non-Significant"))
 
 
-  p <- ggplot(toPlot, aes(x = pair, y = corr, fill = pair)) + 
+  p <- ggplot(toPlot, aes(x = pair, y = corr, fill = fill)) + 
     geom_bar(stat="identity", color="black", position=position_dodge()) +
-    geom_errorbar(aes(ymin=corr-sd, ymax=corr+sd), width=.2, position=position_dodge(.9)) +
+    geom_errorbar(aes(ymin=corr-ci, ymax=corr+ci), width=.2, position=position_dodge(.9)) +
     scale_fill_manual(values = pal) +
     facet_wrap(.~label, nrow = 1, scales = scales) +
     geom_hline(yintercept = 0) +
@@ -336,12 +281,15 @@ plot_model(lm_compile, "Linear", "Spearman")
 plot_model(lm_compile, "Linear", "Spearman", "free_y")
 plot_model(ls_compile, "LASSO", "Spearman")
 plot_model(ls_compile, "LASSO", "Spearman", "free_y")
+plot_model(en_compile, "ElasticNet", "Spearman")
+plot_model(en_compile, "ElasticNet", "Spearman", "free_y")
 
 plot_model(lm_compile, "Linear", "Pearson")
 plot_model(lm_compile, "Linear", "Pearson", "free_y")
 plot_model(ls_compile, "LASSO", "Pearson")
 plot_model(ls_compile, "LASSO", "Pearson", "free_y")
-
+plot_model(en_compile, "ElasticNet", "Pearson")
+plot_model(en_compile, "ElasticNet", "Pearson", "free_y")
 
 ############################################################
 # Plot feature results
@@ -392,300 +340,12 @@ plot_feature("LASSO", "CIRCexplorer2")
 plot_feature("LASSO", "circRNA_finder")
 plot_feature("LASSO", "find_circ")
 
-############################################################
-# FROM HERE: RUN IndivFeatureInfluence.ipynb
-############################################################
-
-
-############################################################
-# Define function to load in univariable model results
-############################################################
-
-# helper function to format each dataset pair result
-load_pair <- function(path, pair, filetype) {
-
-  features <- c("gc", "n_exon", "length")
-
-  # get median
-  median <- c("gcsi_ccle" = "gdsc_median", 
-              "gcsi_gdsc" = "ccle_median",
-              "gdsc_ccle" = "gcsi_median")
-  features <- c(median[gsub("/", "", pair)], features)
-
-  # process model datafile
-  if (filetype == "model") {
-
-    # create dataframe to store results
-    res <- data.frame(matrix(nrow = 0, ncol = 6))
-    
-    # loop through each feature
-    for (feat in features) {
-      
-      # load in data files
-      df <- read.csv(paste0(path, pair, feat, "_lm.csv"))
-
-      # remove brackets from Pearson
-      df$Pearson <- gsub("\\[", "", gsub("]", "", df$Pearson)) |> as.numeric()
-
-      # add labels
-      df$pair <- gsub("/", "", pair)
-      df$feature <- feat
-      df$feature[df$feature %in% c("gdsc_median", "ccle_median", "gcsi_median")] <- "median"
-
-      res <- rbind(res, df)
-    }
-  }
-
-  # process feature datafile
-  if (filetype == "features") {
-
-    # create dataframe to store results
-    res <- data.frame(matrix(nrow = 0, ncol = 3))
-
-    # loop through each feature
-    for (feat in features) {
-
-      # load in data files
-      df <- read.csv(paste0(path, pair, feat, "_lm_features.csv"))
-      df$pair <- gsub("/", "", pair)
-
-      # rename median
-      df$Peak[df$Peak %in% c("gdsc_median", "ccle_median", "gcsi_median")] <- "median"
-      colnames(df)[1] <- "Feature"
-
-      res <- rbind(res, df)
-
-    }
-  }
-  return(res)
-}
-
-# function to load in results
-load_model <- function(label, filetype) {
-
-  path = paste0("results/data/feature_influence/univariable/", label)
-
-  # process model files
-  if (filetype == "model") {
-    df <- rbind(
-      load_pair(path, "/gcsi_ccle/", "model"),
-      load_pair(path, "/gcsi_gdsc/", "model"),
-      load_pair(path, "/gdsc_ccle/", "model")
-    )
-  }
-  # process feature files
-  if (filetype == "features") {
-    df <- rbind(
-      load_pair(path, "/gcsi_ccle/", "features"),
-      load_pair(path, "/gcsi_gdsc/", "features"),
-      load_pair(path, "/gdsc_ccle/", "features")
-    )
-  }
-  df$label <- label
-  return(df)
-}
-
-
-############################################################
-# Load in univariable results
-############################################################
-
-# set up palette for plotting
-pal = c("#DACCAB", "#C78B76", "#9D3737")
-
-# set up model results
-model_df <- rbind(
-  load_model("Gene_Expression", "model"),
-  load_model("Isoform_Expression", "model"),
-  load_model("CIRI2", "model"),
-  load_model("CIRCexplorer2", "model"),
-  load_model("circRNA_finder", "model"),
-  load_model("find_circ", "model")
-)
-
-# format model dataframe
-model_df$Fold <- factor(model_df$Fold, levels = c(1, 2, 3, 4, 5))
-model_df$pair <- factor(model_df$pair, 
-  levels = c("gcsi_ccle", "gcsi_gdsc", "gdsc_ccle"),
-  labels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE"))
-model_df$label <- factor(model_df$label, 
-  levels = c("Gene_Expression", "Isoform_Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"),
-  labels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
-model_df$feature <- factor(model_df$feature, 
-  levels = c("median", "gc", "n_exon", "length"),
-  labels = c("Median Exp", "GC%", "No. Exons", "Length"))
-
-# set up feature results
-feature_df <- rbind(
-  load_model("Gene_Expression", "features"),
-  load_model("Isoform_Expression", "features"),
-  load_model("CIRI2", "features"),
-  load_model("CIRCexplorer2", "features"),
-  load_model("circRNA_finder", "features"),
-  load_model("find_circ", "features")
-)
-
-# format feature dataframe
-feature_df$Feature <- factor(feature_df$Feature, 
-  levels = c("median", "gc", "n_exon", "length"),
-  labels = c("Median Exp", "GC%", "No. Exons", "Length"))
-feature_df$label <- factor(feature_df$label, 
-  levels = c("Gene_Expression", "Isoform_Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"),
-  labels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
-
-
-############################################################
-# Format and save model results
-############################################################
-
-# function to compile results
-compile_res <- function() {
-  
-  df <- model_df
-  df$cat <- paste(df$label, df$pair, df$feature, sep = "-")
-  
-  # get average and max
-  res <- df %>%
-    group_by(cat) %>%
-    summarise(
-      avg_spearman = mean(Spearman, na.rm = TRUE),
-      sd_spearman  = sd(Spearman, na.rm = TRUE),
-      avg_pearson  = mean(Pearson, na.rm = TRUE),
-      sd_pearson   = sd(Pearson, na.rm = TRUE),
-      max_spearman = Spearman[which.max(abs(Spearman))],
-      max_pearson  = Pearson[which.max(abs(Pearson))],
-      .groups = "drop"
-    )
-  res <- res %>%
-    separate(cat, into = c("label", "pair", "feature"), sep = "-", remove = FALSE)
-  
-  # format results
-  res$label <- factor(res$label, levels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
-  res$pair <- factor(res$pair, levels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE"))
-  res$feature <- factor(res$feature, levels = c("Median Exp", "GC%", "No. Exons", "Length"))
-
-  res <- res[order(res$label, res$pair, res$feature),] |> as.data.frame()
-
-  # transpose
-  rownames(res) <- res$cat
-  res <- t(res[,-c(1)]) |> as.data.frame()
-
-  return(res)
-}
-
-# compile results
-univariable_compile <- compile_res()
-
-# write results
-write.csv(univariable_compile, file = "results/data/feature_influence/multivariable/indiv_lm.csv", quote = F, row.names = T)
-
-
-############################################################
-# Plot model results from univariable models (across folds)
-############################################################
-
-# function to plot model correlations
-plot_model <- function(corr) {
-
-  p <- ggplot(model_df, aes(x = pair, y = .data[[corr]], fill = pair)) + 
-    geom_bar(stat="identity", color="black", position=position_dodge()) +
-    scale_fill_manual(values = pal) +
-    facet_nested(~ factor(label) + factor(feature), scales = "free_x") +
-    geom_hline(yintercept = 0) +
-    theme_classic() +
-    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-          legend.key.size = unit(0.5, 'cm'),
-          axis.text.x = element_text(angle = 90, hjust = 0.1)) +
-    labs(fill = "Dataset Pair", x = "Dataset Pair") 
-
-  png(paste0("results/figures/univariable_", corr, "_", scales, "_scales.png"), width=12, height=5, units='in', res = 600, pointsize=80)
-  print({p})
-  dev.off()
-}
-
-# plot model correlations
-plot_model("Spearman")
-plot_model("Pearson")
-
-
-############################################################
-# Plot model results (average across folds)
-############################################################
-
-# function to plot model correlations
-plot_model <- function(corr, scales = "fixed") {
-
-  toPlot <- t(univariable_compile) |> as.data.frame()
-
-  # format columns
-  if (corr == "Spearman") {
-    colnames(toPlot)[colnames(toPlot) == "avg_spearman"] <- "corr"
-    colnames(toPlot)[colnames(toPlot) == "sd_spearman"] <- "sd"
-  }
-  if (corr == "Pearson") {
-    colnames(toPlot)[colnames(toPlot) == "avg_pearson"] <- "corr"
-    colnames(toPlot)[colnames(toPlot) == "sd_pearson"] <- "sd"
-  }
-  toPlot$corr <- as.numeric(toPlot$corr)
-  toPlot$sd <- as.numeric(toPlot$sd)
-
-  toPlot$pair <- factor(toPlot$pair, 
-    levels = c("gCSI/CCLE", "gCSI/GDSC", "GDSC/CCLE"))
-  toPlot$label <- factor(toPlot$label, 
-    levels = c("Gene Expression", "Isoform Expression", "CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
-  toPlot$feature <- factor(toPlot$feature, levels = c("Median Exp", "GC%", "No. Exons", "Length"))
-
-  p <- ggplot(toPlot, aes(x = feature, y = corr, fill = pair)) + 
-    geom_bar(stat="identity", color="black", position=position_dodge()) +
-    geom_errorbar(aes(ymin=corr-sd, ymax=corr+sd), width=.2, position=position_dodge(.9)) +
-    scale_fill_manual(values = pal) +
-    facet_wrap(.~label, nrow = 2, scales = scales) +
-    geom_hline(yintercept = 0) +
-    theme_classic() +
-    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-          legend.key.size = unit(0.5, 'cm')) +
-    labs(fill = "Dataset Pair", x = "Dataset Pair", y = corr) 
-
-  png(paste0("results/figures/avg/univariable_", corr, "_", scales, "_scales.png"), width=9, height=5, units='in', res = 600, pointsize=80)
-  print({p})
-  dev.off()
-}
-
-# plot model correlations
-plot_model("Spearman")
-plot_model("Spearman", "free_y")
-plot_model("Pearson")
-plot_model("Pearson", "free_y")
-
-############################################################
-# Plot feature results from univariable models 
-############################################################
-
-# function to plot feature weights
-plot_feature <- function(scales = "fixed") {
-
-  p <- ggplot(feature_df, aes(x = Feature, y = Weight, fill = pair)) + 
-    geom_bar(stat="identity", color="black", position=position_dodge()) +
-    scale_fill_manual(values = pal, 
-                      labels = c("gcsi_ccle" = "gCSI/CCLE",
-                                "gcsi_gdsc" = "gCSI/GDSC",
-                                "gdsc_ccle" = "GDSC/CCLE")) +
-    facet_wrap(.~label, nrow = 1, scales = scales) +
-    geom_hline(yintercept = 0) +
-    theme_classic() +
-    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-          legend.key.size = unit(0.5, 'cm'),
-          axis.text.x = element_text(angle = 90, hjust = 0.1)) +
-    labs(fill = "Dataset Pair") 
-
-  png(paste0("results/figures/univariable_features_", scales, "_scales.png"), width=11, height=5, units='in', res = 600, pointsize=80)
-  print({p})
-  dev.off()
-}
-
-# plot feature weights
-plot_feature()
-plot_feature("free_y")
+plot_feature("ElasticNet", "Gene Expression")
+plot_feature("ElasticNet", "Isoform Expression")
+plot_feature("ElasticNet", "CIRI2")
+plot_feature("ElasticNet", "CIRCexplorer2")
+plot_feature("ElasticNet", "circRNA_finder")
+plot_feature("ElasticNet", "find_circ")
 
 
 ############################################################
