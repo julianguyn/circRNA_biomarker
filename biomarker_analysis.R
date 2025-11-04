@@ -233,7 +233,8 @@ ccle_fdr_b <- subset_dr(ccle_bin_dr)
 
 # function to create upset plot
 plot_upset <- function(comb_mat, set_order, filename) {
-    png(paste0("../results/figures/figure9/upset_dr_", filename, ".png"), width = 4, height = 3, res = 600, units = "in")
+    #png(paste0("../results/figures/figure9/upset_dr_", filename, ".png"), width = 8, height = 3, res = 600, units = "in")
+    png(paste0("upset_dr_", filename, ".png"), width = 8, height = 3, res = 600, units = "in")
     print({UpSet(comb_mat, set_order = set_order,
         top_annotation = upset_top_annotation(comb_mat, add_numbers = TRUE),
         comb_order = order(-comb_size(comb_mat)),
@@ -250,49 +251,6 @@ toPlot_bin <- make_comb_mat(list(
 
 # plot upset plots
 plot_upset(toPlot_bin, set_order = c("gCSI", "CCLE", "GDSC"), filename = "bin0")
-
-############################################################
-# TODO: REDO THIS PLOT: Compare Stat of Overlapping P-Val Sig Biomarkers
-############################################################
-
-# function to create dataframe of overlapping p-value significant biomarkers
-plot_overlapping <- function(gcsi_pval, ccle_pval, gdsc_pval) {
-
-    # identify p-value significant biomarkers in >1 PSet
-    common_biomarker <- c(intersect(gcsi_pval$pair, gdsc_pval$pair),
-                        intersect(ccle_pval$pair, gdsc_pval$pair),
-                        intersect(gcsi_pval$pair, ccle_pval$pair))
-
-    # save results from individual pset associations
-    gcsi_common <- gcsi_pval[gcsi_pval$pair %in% common_biomarker,]  
-    ccle_common <- ccle_pval[ccle_pval$pair %in% common_biomarker,]    
-    gdsc_common <- gdsc_pval[gdsc_pval$pair %in% common_biomarker,]    
-
-    # add pset labels
-    gcsi_common$PSet <- "gCSI"
-    ccle_common$PSet <- "CCLE"
-    gdsc_common$PSet <- "GDSC"
-
-    # create dataframe for plotting
-    toPlot <- rbind(gcsi_common, ccle_common, gdsc_common)
-    toPlot$pair <- gsub("_", "\n", toPlot$pair)
-
-    return(toPlot)
-}
-
-# get overlapping p-value significant biomarkers
-toPlot_bin <- plot_overlapping(gcsi_pval_b, ccle_pval_b, gdsc_pval_b)
-
-# plot overlapping biomarkers
-png("../results/figures/figure9/common_bin0_pval_biomarkers.png", width = 21, height = 13, res = 600, units = "in")
-ggplot(toPlot_bin, aes(x = PSet, y = W, fill = pval)) + geom_bar(stat="identity", color = "black") +
-    facet_wrap(~ factor(pair), nrow = 6, scales = "free_x") +
-    labs(fill = "P-Value", y = "Wilcoxon Rank Sum Test Statistic", x = "PSet") + 
-    scale_fill_gradient(low = '#2F446E', high = "#ABC2D3") +
-    theme_classic() +
-    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5))
-dev.off()
-
 
 
 ############################################################
@@ -368,7 +326,7 @@ order_toplot <- c(
 toPlot$Pair <- factor(toPlot$Pair, levels = rev(order_toplot))
 
 # create labels
-toPlot$label <- paste(toPlot$Drug, rep(1:20), sep = ":    ")
+toPlot$label <- paste(toPlot$Drug, sub("^([^\\.]+\\.)([0-9]{3}).*$", "\\1\\2", toPlot$Feature), sep = ":    ")
 
 # set up values to colour 
 toPlot$Diff[is.na(toPlot$Status)] <- NA
@@ -492,17 +450,25 @@ corr_pset <- function(pset1, pset2, filename) {
     
     # plot scatter plot
     png(paste0(filename, ".png"), width = 6, height = 4, res = 600, units = "in")
-    print({ggplot(toPlot, aes(x = diff1, y = diff2)) + 
+    print({
+        ggplot(toPlot, aes(x = diff1, y = diff2)) + 
         geom_point(data = toPlot, aes(x = diff1, y = diff2, color = fdr_sig), shape = 16) +
         geom_point(data = toPlot[toPlot$fdr_sig == paste(p1, "Only"),], aes(x = diff1, y = diff2), size = 2, shape = 21, fill = pal[2]) +
         geom_point(data = toPlot[toPlot$fdr_sig == paste(p2, "Only"),], aes(x = diff1, y = diff2), size = 2, shape = 21, fill = pal[3]) +
         geom_point(data = toPlot[toPlot$fdr_sig == "Both Datasets", ], aes(x = diff1, y = diff2), size = 2.5, shape = 21, fill = pal[1]) +
+        geom_text_repel(data = toPlot[toPlot$pair == paste(drug, circ, sep = "_"), ],
+                        aes(x = diff1, y = diff2, label = paste(drug, circ, sep = "\n")),
+                        force_pull = 0.1, 
+                        nudge_y = -0.19,
+                        nudge_x = -0.11,
+                        box.padding = 0.4) +
         geom_vline(xintercept = 0, linetype = "dashed") +
         geom_hline(yintercept = 0, linetype = "dashed") +
         scale_color_manual("FDR < 0.1", values = pal) +
         theme_classic() + guides(color = guide_legend(override.aes = list(size = 3))) +
         theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5)) +
-        labs(x = paste("Δ Mean AAC in", p1), y = paste("Δ Mean AAC in", p2))})
+        labs(x = paste("Δ Mean AAC in", p1), y = paste("Δ Mean AAC in", p2))
+        })
     dev.off()
 }
 
