@@ -274,22 +274,47 @@ plot_model <- function(df, model, corr, scales = "fixed") {
   png(paste0("results/figures/avg/", model, "_model_", corr, "_", scales, "_scales.png"), width=10, height=5, units='in', res = 600, pointsize=80)
   print({p})
   dev.off()
+
+  if (scales == "fixed") return(toPlot)
 }
 
 # plot model correlations
-plot_model(lm_compile, "Linear", "Spearman")
+lm_s <- plot_model(lm_compile, "Linear", "Spearman")
 plot_model(lm_compile, "Linear", "Spearman", "free_y")
-plot_model(ls_compile, "LASSO", "Spearman")
+ls_s <- plot_model(ls_compile, "LASSO", "Spearman")
 plot_model(ls_compile, "LASSO", "Spearman", "free_y")
-plot_model(en_compile, "ElasticNet", "Spearman")
+en_s <- plot_model(en_compile, "ElasticNet", "Spearman")
 plot_model(en_compile, "ElasticNet", "Spearman", "free_y")
 
-plot_model(lm_compile, "Linear", "Pearson")
+lm_p <- plot_model(lm_compile, "Linear", "Pearson")
 plot_model(lm_compile, "Linear", "Pearson", "free_y")
-plot_model(ls_compile, "LASSO", "Pearson")
+ls_p <- plot_model(ls_compile, "LASSO", "Pearson")
 plot_model(ls_compile, "LASSO", "Pearson", "free_y")
-plot_model(en_compile, "ElasticNet", "Pearson")
+en_p <- plot_model(en_compile, "ElasticNet", "Pearson")
 plot_model(en_compile, "ElasticNet", "Pearson", "free_y")
+
+############################################################
+# Plot all model results
+############################################################
+
+toPlot <- rbind(lm_s, ls_s, en_s)
+toPlot$model <- rep(c("Linear", "LASSO", "ElasticNet"), each = 18)
+
+p <- ggplot(toPlot, aes(x = pair, y = corr, fill = model)) + 
+    geom_bar(stat="identity", color="black", position=position_dodge()) +
+    geom_errorbar(aes(ymin=corr-ci, ymax=corr+ci), width=.2, position=position_dodge(.9)) +
+    scale_fill_manual(values = pal) +
+    facet_wrap(.~label, nrow = 1, scales = "fixed") +
+    geom_hline(yintercept = 0) +
+    theme_classic() +
+    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+          legend.key.size = unit(0.5, 'cm'),
+          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+    labs(fill = "Dataset Pair", x = "Dataset Pair", y = corr)
+
+png("results/figures/all_models.png", width=10, height=4, units='in', res = 600, pointsize=80)
+p
+dev.off()
 
 ############################################################
 # Plot feature results
