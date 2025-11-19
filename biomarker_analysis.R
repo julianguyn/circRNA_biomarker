@@ -226,6 +226,21 @@ gcsi_fdr_b <- subset_dr(gcsi_bin_dr)
 gdsc_fdr_b <- subset_dr(gdsc_bin_dr)
 ccle_fdr_b <- subset_dr(ccle_bin_dr)
 
+############################################################
+# Save Table 4
+############################################################
+
+gcsi_fdr_b$dataset <- "gCSI"
+ccle_fdr_b$dataset <- "CCLE"
+gdsc_fdr_b$dataset <- "GDSC2"
+
+table4 <- rbind(gcsi_fdr_b, ccle_fdr_b, gdsc_fdr_b)
+colnames(table4) <- c(
+    "Drug", "circRNA", "W", "pvalue", "diff.in.AAC",
+    "Exp", "No.Samples", "rm", "rm2", "pair", "FDR", "dataset"
+)
+table4 <- table4[,-which(colnames(table4) %in% c("rm", "rm2"))]
+write.csv(table4, "../results/data/table4.csv", quote = FALSE, row.names = FALSE)
 
 ############################################################
 # Upset plot of overlapping biomarkers
