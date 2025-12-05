@@ -58,17 +58,17 @@ format_lung <- function(df) {
     return(df)
 }
 
-ciri_polyA_gr <- format_lung(ciri_polyA)
-ciri_ribo0_gr <- format_lung(ciri_ribo0)
+ciri_polyA <- format_lung(ciri_polyA)
+ciri_ribo0 <- format_lung(ciri_ribo0)
 
-circ_polyA_gr <- format_lung(circ_polyA)
-circ_ribo0_gr <- format_lung(circ_ribo0)
+circ_polyA <- format_lung(circ_polyA)
+circ_ribo0 <- format_lung(circ_ribo0)
 
-cfnd_polyA_gr <- format_lung(cfnd_polyA)
-cfnd_ribo0_gr <- format_lung(cfnd_ribo0)
+cfnd_polyA <- format_lung(cfnd_polyA)
+cfnd_ribo0 <- format_lung(cfnd_ribo0)
 
-fcrc_polyA_gr <- format_lung(fcrc_polyA)
-fcrc_ribo0_gr <- format_lung(fcrc_ribo0)
+fcrc_polyA <- format_lung(fcrc_polyA)
+fcrc_ribo0 <- format_lung(fcrc_ribo0)
 
 ############################################################
 # Create GRanges of circRNA genomic coordinates
