@@ -44,6 +44,32 @@ fcrc_gcsi_sub <- fread(paste0(path, "find_circ/fcrc_gcsi_counts.tsv"), data.tabl
 fcrc_gdsc_sub <- fread(paste0(path, "find_circ/fcrc_gdsc_counts.tsv"), data.table = F)
 fcrc_ccle_sub <- fread(paste0(path, "find_circ/fcrc_ccle_counts.tsv"), data.table = F)
 
+# load lung circRNA expression data
+load("../data/processed_lung/circ_lung_expression.RData")
+
+############################################################
+# Format lung dataframes
+############################################################
+
+# helper function
+format_lung <- function(df) {
+    df <- data.frame(sample = rownames(df), df)
+    rownames(df) <- NULL
+    return(df)
+}
+
+ciri_polyA_gr <- format_lung(ciri_polyA)
+ciri_ribo0_gr <- format_lung(ciri_ribo0)
+
+circ_polyA_gr <- format_lung(circ_polyA)
+circ_ribo0_gr <- format_lung(circ_ribo0)
+
+cfnd_polyA_gr <- format_lung(cfnd_polyA)
+cfnd_ribo0_gr <- format_lung(cfnd_ribo0)
+
+fcrc_polyA_gr <- format_lung(fcrc_polyA)
+fcrc_ribo0_gr <- format_lung(fcrc_ribo0)
+
 ############################################################
 # Create GRanges of circRNA genomic coordinates
 ############################################################
@@ -60,6 +86,7 @@ IDstoBED <- function(df) {
     return(bed)
 }
 
+# cell line
 ciri_gcsi_gr <- IDstoBED(ciri_gcsi_sub)
 ciri_gdsc_gr <- IDstoBED(ciri_gdsc_sub)
 ciri_ccle_gr <- IDstoBED(ciri_ccle_sub)
@@ -75,6 +102,19 @@ cfnd_ccle_gr <- IDstoBED(cfnd_ccle_sub)
 fcrc_gcsi_gr <- IDstoBED(fcrc_gcsi_sub)
 fcrc_gdsc_gr <- IDstoBED(fcrc_gdsc_sub)
 fcrc_ccle_gr <- IDstoBED(fcrc_ccle_sub)
+
+# lung
+ciri_polyA_gr <- IDstoBED(ciri_polyA)
+ciri_ribo0_gr <- IDstoBED(ciri_ribo0)
+
+circ_polyA_gr <- IDstoBED(circ_polyA)
+circ_ribo0_gr <- IDstoBED(circ_ribo0)
+
+cfnd_polyA_gr <- IDstoBED(cfnd_polyA)
+cfnd_ribo0_gr <- IDstoBED(cfnd_ribo0)
+
+fcrc_polyA_gr <- IDstoBED(fcrc_polyA)
+fcrc_ribo0_gr <- IDstoBED(fcrc_ribo0)
 
 
 ############################################################
@@ -123,7 +163,7 @@ circToGene <- function(gr) {
     return(mapping)
 }
 
-
+# cell line
 ciri_gcsi_map <- circToGene(ciri_gcsi_gr)
 ciri_gdsc_map <- circToGene(ciri_gdsc_gr)
 ciri_ccle_map <- circToGene(ciri_ccle_gr)
@@ -149,78 +189,78 @@ save(ciri_gcsi_map, ciri_gdsc_map, ciri_ccle_map,
      file = "../results/data/temp/circ_to_gene_map.RData")
 
 
+# lung
+ciri_polyA_map <- circToGene(ciri_polyA_gr)
+ciri_ribo0_map <- circToGene(ciri_ribo0_gr)
+
+circ_polyA_map <- circToGene(circ_polyA_gr)
+circ_ribo0_map <- circToGene(circ_ribo0_gr)
+
+cfnd_polyA_map <- circToGene(cfnd_polyA_gr)
+cfnd_ribo0_map <- circToGene(cfnd_ribo0_gr)
+
+fcrc_polyA_map <- circToGene(fcrc_polyA_gr)
+fcrc_ribo0_map <- circToGene(fcrc_ribo0_gr)
+
+# checkpoint
+save(ciri_polyA_map, ciri_ribo0_map,
+     circ_polyA_map, circ_ribo0_map,
+     cfnd_polyA_map, cfnd_ribo0_map,
+     fcrc_polyA_map, fcrc_ribo0_map,
+     file = "../results/data/temp/circ_lung_to_gene_map.RData")
 
 ############################################################
 # Convert circRNA expression matrix labels to genes
 ############################################################
 
 # function to map circRNA expression matrices to gene-level annotations
-circExpToGene <- function(circ_map, circ_exp) {
+circExpToGene <- function(circ_map, circ_exp, dir, label) {
 
     gene_exp <- circ_exp %>%
-        pivot_longer(cols = -sample, names_to = "old_name", values_to = "expression") %>%
+        pivot_longer(
+            cols = -sample, 
+            names_to = "old_name", 
+            values_to = "expression"
+        ) %>%
         inner_join(circ_map, by = "old_name", relationship = "many-to-many") %>%
         group_by(sample, gene) %>%
         summarize(expression = mean(expression), .groups = "drop") %>%
         pivot_wider(names_from = gene, values_from = expression) %>% 
         as.data.frame()
 
-    return(gene_exp)
-
+    # save output
+    dir <- ifelse(dir != "lung", paste0("processed_cellline/GE_common_samples/", dir),"processed_lung/GE")
+    filename <- paste0("../data/", dir, "/", label, "_counts.tsv")
+    print(paste("Saving output to", filename))
+    write.table(gene_exp, file = filename, quote = F, sep = "\t", col.names = T, row.names = F)
 }
 
-ciri_gcsi_ge <- circExpToGene(ciri_gcsi_map, ciri_gcsi_sub)
-ciri_gdsc_ge <- circExpToGene(ciri_gdsc_map, ciri_gdsc_sub)
-ciri_ccle_ge <- circExpToGene(ciri_ccle_map, ciri_ccle_sub)
+# cells
+circExpToGene(ciri_gcsi_map, ciri_gcsi_sub, "CIRI2", "ciri_gcsi")
+circExpToGene(ciri_gdsc_map, ciri_gdsc_sub, "CIRI2", "ciri_gdsc")
+circExpToGene(ciri_ccle_map, ciri_ccle_sub, "CIRI2", "ciri_ccle")
 
-circ_gcsi_ge <- circExpToGene(circ_gcsi_map, circ_gcsi_sub)
-circ_gdsc_ge <- circExpToGene(circ_gdsc_map, circ_gdsc_sub)
-circ_ccle_ge <- circExpToGene(circ_ccle_map, circ_ccle_sub)
+circExpToGene(circ_gcsi_map, circ_gcsi_sub, "CIRCexplorer2", "circ_gcsi")
+circExpToGene(circ_gdsc_map, circ_gdsc_sub, "CIRCexplorer2", "circ_gdsc")
+circExpToGene(circ_ccle_map, circ_ccle_sub, "CIRCexplorer2", "circ_ccle")
 
-cfnd_gcsi_ge <- circExpToGene(cfnd_gcsi_map, cfnd_gcsi_sub)
-cfnd_gdsc_ge <- circExpToGene(cfnd_gdsc_map, cfnd_gdsc_sub)
-cfnd_ccle_ge <- circExpToGene(cfnd_ccle_map, cfnd_ccle_sub)
+circExpToGene(cfnd_gcsi_map, cfnd_gcsi_sub, "circRNA_finder", "cfnd_gcsi")
+circExpToGene(cfnd_gdsc_map, cfnd_gdsc_sub, "circRNA_finder", "cfnd_gdsc")
+circExpToGene(cfnd_ccle_map, cfnd_ccle_sub, "circRNA_finder", "cfnd_ccle")
 
-fcrc_gcsi_ge <- circExpToGene(fcrc_gcsi_map, fcrc_gcsi_sub)
-fcrc_gdsc_ge <- circExpToGene(fcrc_gdsc_map, fcrc_gdsc_sub)
-fcrc_ccle_ge <- circExpToGene(fcrc_ccle_map, fcrc_ccle_sub)
+circExpToGene(fcrc_gcsi_map, fcrc_gcsi_sub, "find_circ", "fcrc_gcsi")
+circExpToGene(fcrc_gdsc_map, fcrc_gdsc_sub, "find_circ", "fcrc_gdsc")
+circExpToGene(fcrc_ccle_map, fcrc_ccle_sub, "find_circ", "fcrc_ccle")
 
+# lung
+circExpToGene(ciri_polyA_map, ciri_polyA, "lung", "ciri_polyA")
+circExpToGene(ciri_ribo0_map, ciri_ribo0, "lung", "ciri_ribo0")
 
-# save dataframes
-write.table(ciri_gcsi_ge, file = "../data/processed_cellline/GE_common_samples/CIRI2/ciri_gcsi_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
-write.table(ciri_gdsc_ge, file = "../data/processed_cellline/GE_common_samples/CIRI2/ciri_gdsc_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
-write.table(ciri_ccle_ge, file = "../data/processed_cellline/GE_common_samples/CIRI2/ciri_ccle_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+circExpToGene(circ_polyA_map, circ_polyA, "lung", "circ_polyA")
+circExpToGene(circ_ribo0_map, circ_ribo0, "lung", "circ_ribo0")
 
-write.table(circ_gcsi_ge, file = "../data/processed_cellline/GE_common_samples/CIRCexplorer2/circ_gcsi_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
-write.table(circ_gdsc_ge, file = "../data/processed_cellline/GE_common_samples/CIRCexplorer2/circ_gdsc_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
-write.table(circ_ccle_ge, file = "../data/processed_cellline/GE_common_samples/CIRCexplorer2/circ_ccle_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+circExpToGene(cfnd_polyA_map, cfnd_polyA, "lung", "cfnd_polyA")
+circExpToGene(cfnd_ribo0_map, cfnd_ribo0, "lung", "cfnd_ribo0")
 
-write.table(cfnd_gcsi_ge, file = "../data/processed_cellline/GE_common_samples/circRNA_finder/cfnd_gcsi_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
-write.table(cfnd_gdsc_ge, file = "../data/processed_cellline/GE_common_samples/circRNA_finder/cfnd_gdsc_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
-write.table(cfnd_ccle_ge, file = "../data/processed_cellline/GE_common_samples/circRNA_finder/cfnd_ccle_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
-
-write.table(fcrc_gcsi_ge, file = "../data/processed_cellline/GE_common_samples/find_circ/fcrc_gcsi_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
-write.table(fcrc_gdsc_ge, file = "../data/processed_cellline/GE_common_samples/find_circ/fcrc_gdsc_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
-write.table(fcrc_ccle_ge, file = "../data/processed_cellline/GE_common_samples/find_circ/fcrc_ccle_counts.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
-
-
-## OLD CODE
-# ========== Map circRNAs to genes ========== #
-
-# load in annotation file from circAtlas
-# link: https://ngdc.cncb.ac.cn/circatlas/links1.php - human_bed_v3.0.zip
-anno <- fread("../data/human_bed_v3.0.txt")
-anno$gene <- gsub("_.*", "", gsub("hsa-", "", anno$circAltas_ID))
-anno$circID <- paste(anno$Chro, anno$Start, anno$End, sep = ".")
-
-
-# load in annotation file from circBase
-anno <- fread("../data/hsa_hg19_circRNA.bed")
-anno <- anno[,c(1:3, 6)]
-colnames(anno) <- c("chrom", "chromStart", "chromEnd", "strand")
-anno$chromStart <- as.numeric(anno$chromStart)
-anno$chromEnd <- as.numeric(anno$chromEnd)
-anno <- GenomicRanges::makeGRangesFromDataFrame(anno, na.rm = TRUE)
-
-# annotation file from circBase after LiftOver: https://genome.ucsc.edu/cgi-bin/hgLiftOver
-anno <- fread("../data/hglft_genome_10a3cf_1b6e70.bed")
+circExpToGene(fcrc_polyA_map, fcrc_polyA, "lung", "fcrc_polyA")
+circExpToGene(fcrc_ribo0_map, fcrc_ribo0, "lung", "fcrc_ribo0")
