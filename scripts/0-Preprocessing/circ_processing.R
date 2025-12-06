@@ -1,20 +1,99 @@
-# Create analysis-ready count matrices for circRNA
-
-# load libraries
-suppressMessages(library(data.table))
-suppressMessages(library(ggplot2))
-suppressMessages(library(ggpubr))
-suppressMessages(library(ggvenn))
-suppressMessages(library(PharmacoGx))
-suppressMessages(library(stringr))
-suppressMessages(library(ComplexHeatmap))
+#' Create analysis-ready count matrices for circRNA
+#' 
+suppressPackageStartupMessages({
+    library(data.table)
+})
 
 options(stringsAsFactors = FALSE)
 
+source("utils/circ_processing.R")
 
-###############################################
-### Create cell line circRNA count matrices ###
-###############################################
+# load libraries
+#suppressMessages(library(data.table))
+#suppressMessages(library(ggplot2))s
+#suppressMessages(library(ggpubr))
+#suppressMessages(library(PharmacoGx))
+#suppressMessages(library(stringr))
+#suppressMessages(library(ComplexHeatmap))
+
+
+############################################################
+# Function to compile
+############################################################
+
+#' Function to process raw circRNA count matrices
+#' 
+#' @param type string. Either "cells" or "lungs"
+#' 
+process_raw_counts <- function(type) {
+
+  # get input dirs
+  dir <- switch(
+    type,
+    cells = "../data/raw_cellline",
+    lungs = "../data/raw_lung"
+  )
+
+  files <- list.files(dir, recursive = TRUE, pattern = ".*counts.tsv")
+
+  for (file in files) {
+
+    print(paste("Starting file:", file))
+    counts <- fread(paste0(dir, "/", file), data.table = FALSE)
+    colnames(counts)[1] <- "sample"
+
+    # catch the ribo0 lungs
+    counts$sample <- sub("_INPUT", "", counts$sample)
+
+    # extract variables
+    pipeline <- sub("/.*", "", file)
+    count_file <- sub(".*/", "", file)
+    dataset <- sub(".*_", "", sub(".*/", "", sub("_counts.tsv", "", file)))
+    label <- paste(type, dataset, sep = "_")
+
+    # get library sizes for dataset
+    lib <- switch(
+      label,
+      cells_gcsi = "../data/raw_cellline/readCounts/gcsi.tsv",
+      cells_ccle = "../data/raw_cellline/readCounts/ccle.tsv",
+      cells_gdsc = "../data/raw_cellline/readCounts/gdsc.tsv",
+      lungs_polyA = "../data/raw_lung/readCounts/polyA.tsv",
+      lungs_ribo0 = "../data/raw_lung/readCounts/ribo0.tsv"
+    )
+    print(paste("Reading in library file:", lib))
+    reads <- read.table(lib, header = TRUE)
+
+    # normalize by read depth
+    counts <- get_cpm(counts, reads)
+
+    # average across technical replicates
+    counts <- avg_reps(counts)
+
+    # save normalized counts
+    outdir <- sub("raw", "processed", dir)
+    if (!dir.exists(paste0(outdir, "/", pipeline))) {
+      dir.create(paste0(outdir, "/", pipeline), recursive = TRUE)
+    }
+    outfile <- paste0(outdir, "/", pipeline, "/", count_file)
+    print(paste("Saving normalized counts to:", outfile))
+    write.table(
+      counts,
+      file = outfile,
+      quote = FALSE,
+      sep = "\t",
+      col.names = TRUE,
+      row.names = FALSE
+    )
+  }
+  print("done")
+}
+
+process_raw_counts("cells")
+process_raw_counts("lungs")
+
+############################################################
+# Load in data
+############################################################
 
 # read in circRNA matrices
 suppressWarnings(ciri_gcsi <- fread("../data/raw_cellline/CIRI2/ciri_gcsi_counts.tsv", data.table = F))
@@ -57,7 +136,12 @@ gdsc_tmeta <- fread("../data/rnaseq_meta/tissue_meta/gdsc_metadata.tsv")
 
 
 # function to match cell.id to unique.cellid from PharmacoGx
-matchToIDTable <- function(ids,tbl, column, returnColumn="unique.cellid") {
+matchToIDTable <- function(
+  ids,
+  tbl,
+  column,
+  returnColumn = "unique.cellid"
+) {
   sapply(ids, function(x) {
     myx <- grep(paste0("((///)|^)",Hmisc::escapeRegex(x),"((///)|$)"), tbl[,column])
     if(length(myx) > 1){
@@ -146,27 +230,6 @@ ccle_reads$sample <- ccle$cellid[match(ccle_reads$sample, rownames(ccle))]
 gdsc_reads$sample <- gdsc$cellid[match(gdsc_reads$sample, rownames(gdsc))]
 
 
-# function to normalize counts
-cpm <- function(df, lib) {
-
-  # save sample names
-  samples <- data.frame(sample = df$V1)
-
-  # keep only chromosomal circRNAs
-  rm <- colnames(df)[-grep("chr", colnames(df))]
-  if(length(rm) > 0) {df <- df[,-which(colnames(df) %in% rm)]}
-
-  # order the samples and match order with library size
-  lib <- lib[match(samples$sample, lib$sample),]
-
-  # divide counts in each row by the corresponding library size for that sample
-  df_cpm <- lapply(df, function(col) col / lib$avg_counts * 1e6)
-
-  # re-add sample names
-  df <- cbind(samples, df_cpm)
-
-  return(df)
-}
 
 # normalize circ data frames
 ciri_gcsi <- cpm(ciri_gcsi, gcsi_reads)
@@ -187,34 +250,6 @@ fcrc_gdsc <- cpm(fcrc_gdsc, gdsc_reads)
 
 
 # ========== Average across all technical replicates ========== #
-
-# function to average technical replicates               
-avg_reps <- function(df) {
-
-  # identify replicates
-  reps <- df$sample[duplicated(df$sample)]
-  print(reps)
-
-  # if replicates present, loop through each replicate to average counts
-  if (length(reps) > 0) {
-        
-    for (rep in reps) {
-      print(rep)
-      
-      # average counts across replicates
-      num_reps <- nrow(df[which(df$sample == rep),])
-      tmp <- data.frame(lapply(df[which(df$sample == rep), -which(colnames(df) == "sample")], as.numeric))
-      avg_counts <- c(rep, as.numeric(colSums(tmp)/num_reps)) #'x' must be numeric
-      
-      # replace replicates with average
-      df <- df[-which(df$sample == rep),]
-      df <- rbind(df, avg_counts)
-    }
-  }
-
-  return(df)
-        
-}
 
 # average technical replicates across circ data frames
 ciri_gcsi <- avg_reps(ciri_gcsi)

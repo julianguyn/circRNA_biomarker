@@ -17,7 +17,20 @@ set.seed(101)
 # Load in data 
 ############################################################
 
-load("../data/processed_lung/circ_lung_expression.RData")      # from circ_lung.R
+# analysis = c("circ", "GE")  
+
+if (analysis == "circ") {
+    load("../data/processed_lung/circ_lung_expression.RData") # from circ_lung.R
+} else if (analysis == "GE") {
+    ciri_polyA <- fread("../data/processed_lung/GE/ciri_polyA_counts.tsv")
+    ciri_ribo0 <- fread("../data/processed_lung/GE/ciri_ribo0_counts.tsv")
+    circ_polyA <- fread("../data/processed_lung/GE/circ_polyA_counts.tsv")
+    circ_ribo0 <- fread("../data/processed_lung/GE/circ_ribo0_counts.tsv")
+    cfnd_polyA <- fread("../data/processed_lung/GE/cfnd_polyA_counts.tsv")
+    cfnd_ribo0 <- fread("../data/processed_lung/GE/cfnd_ribo0_counts.tsv")
+    fcrc_polyA <- fread("../data/processed_lung/GE/fcrc_polyA_counts.tsv")
+    fcrc_ribo0 <- fread("../data/processed_lung/GE/fcrc_ribo0_counts.tsv")
+}
 
 
 ############################################################

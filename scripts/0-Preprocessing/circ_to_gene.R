@@ -13,22 +13,24 @@ suppressPackageStartupMessages({
 
 
 ############################################################
-# Load in data 
+# Load in data
 ############################################################
 
 # load in hg38 genomic coordinates
-exons <- exonsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, "gene") 
+exons <- exonsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, "gene")
 
 # map gene symbols
-mcols(exons)$gene_name <- mapIds(org.Hs.eg.db, 
-                                    keys = names(exons), 
-                                    column = "SYMBOL", 
-                                    keytype = "ENTREZID")
+mcols(exons)$gene_name <- mapIds(
+    org.Hs.eg.db,
+    keys = names(exons),
+    column = "SYMBOL",
+    keytype = "ENTREZID"
+)
 
 # load circRNA expression data
 path <- "../data/processed_cellline/common_samples/"
 
-ciri_gcsi_sub <- fread(paste0(path, "CIRI2/ciri_gcsi_counts.tsv"), data.table = F) 
+ciri_gcsi_sub <- fread(paste0(path, "CIRI2/ciri_gcsi_counts.tsv"), data.table = F)
 ciri_gdsc_sub <- fread(paste0(path, "CIRI2/ciri_gdsc_counts.tsv"), data.table = F)
 ciri_ccle_sub <- fread(paste0(path, "CIRI2/ciri_ccle_counts.tsv"), data.table = F)
 
@@ -45,30 +47,20 @@ fcrc_gdsc_sub <- fread(paste0(path, "find_circ/fcrc_gdsc_counts.tsv"), data.tabl
 fcrc_ccle_sub <- fread(paste0(path, "find_circ/fcrc_ccle_counts.tsv"), data.table = F)
 
 # load lung circRNA expression data
-load("../data/processed_lung/circ_lung_expression.RData")
+path <- "../data/processed_lung/"
 
-############################################################
-# Format lung dataframes
-############################################################
+ciri_polyA <- fread(paste0(path, "CIRI2/ciri_polyA_counts.tsv"), data.table = F)
+ciri_ribo0 <- fread(paste0(path, "CIRI2/ciri_ribo0_counts.tsv"), data.table = F)
 
-# helper function
-format_lung <- function(df) {
-    df <- data.frame(sample = rownames(df), df)
-    rownames(df) <- NULL
-    return(df)
-}
+circ_polyA <- fread(paste0(path, "CIRCexplorer2/circ_polyA_counts.tsv"), data.table = F)
+circ_ribo0 <- fread(paste0(path, "CIRCexplorer2/circ_ribo0_counts.tsv"), data.table = F)
 
-ciri_polyA <- format_lung(ciri_polyA)
-ciri_ribo0 <- format_lung(ciri_ribo0)
+cfnd_polyA <- fread(paste0(path, "circRNA_finder/cfnd_polyA_counts.tsv"), data.table = F)
+cfnd_ribo0 <- fread(paste0(path, "circRNA_finder/cfnd_ribo0_counts.tsv"), data.table = F)
 
-circ_polyA <- format_lung(circ_polyA)
-circ_ribo0 <- format_lung(circ_ribo0)
+fcrc_polyA <- fread(paste0(path, "find_circ/fcrc_polyA_counts.tsv"), data.table = F)
+fcrc_ribo0 <- fread(paste0(path, "find_circ/fcrc_ribo0_counts.tsv"), data.table = F)
 
-cfnd_polyA <- format_lung(cfnd_polyA)
-cfnd_ribo0 <- format_lung(cfnd_ribo0)
-
-fcrc_polyA <- format_lung(fcrc_polyA)
-fcrc_ribo0 <- format_lung(fcrc_ribo0)
 
 ############################################################
 # Create GRanges of circRNA genomic coordinates
