@@ -19,6 +19,11 @@ compute_stability_index <- function(df1, df2, label1, label2, dataset, random = 
     transcripts <- intersect(colnames(df1), colnames(df2))
     print(paste("-----Number of common transcripts:", length(transcripts)))
 
+    # catch case where there are no overlapping transcripts
+    if (length(transcripts) == 0) {
+        return(data.frame(matrix(nrow=0, ncol=4)))
+    }
+
     # order dataframes
     df1 <- df1[match(samples, rownames(df1)), match(transcripts, colnames(df1))]
     df2 <- df2[match(samples, rownames(df2)), match(transcripts, colnames(df2))]
