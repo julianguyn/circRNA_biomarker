@@ -11,158 +11,126 @@ suppressPackageStartupMessages({
 options(stringsAsFactors = FALSE)
 set.seed(123)
 
-# TODO: format counts dataframes and run randomization
+source("utils/palettes.R")
+source("utils/compute_stability_index.R")
 
-############################################################
-# Load in data 
-############################################################
+# -----------------------------------------------------------
+# Parse args
+# -----------------------------------------------------------
 
-# load circRNA expression data
-#path <- "../data/processed_cellline/GE_common_samples/"
+args <- commandArgs(trailingOnly = TRUE)
+analysis <- args[1]
 
-#ciri_polyA <- fread(paste0(path, "CIRI2/ciri_gcsi_counts.tsv"), data.table = F)                          #ncol: 2502
-#ciri_ribo0 <- fread(paste0(path, "CIRI2/ciri_gdsc_counts.tsv"), data.table = F)                          #ncol: 3039
-
-#circ_polyA <- fread(paste0(path, "CIRCexplorer2/circ_gcsi_counts.tsv"), data.table = F)                  #ncol: 3658
-#circ_ribo0 <- fread(paste0(path, "CIRCexplorer2/circ_gdsc_counts.tsv"), data.table = F)                  #ncol: 3004
-
-#cfnd_polyA <- fread(paste0(path, "circRNA_finder/cfnd_gcsi_counts.tsv"), data.table = F)                 #ncol: 9459
-#cfnd_ribo0 <- fread(paste0(path, "circRNA_finder/cfnd_gdsc_counts.tsv"), data.table = F)                 #ncol: 9684
-
-#fcrc_polyA <- fread(paste0(path, "find_circ/fcrc_gcsi_counts.tsv"), data.table = F)                      #ncol: 29898
-#fcrc_ribo0 <- fread(paste0(path, "find_circ/fcrc_gdsc_counts.tsv"), data.table = F)                      #ncol: 30660
-
-
-load("../data/processed_lung/circ_lung_expression.RData")      # from circ_lung.R
-
-####################################################
-#  circRNA Quantification Comparisons 
-####################################################
-
-
-# set palette for plotting
-pal = c("#839788", "#BFD7EA", "#BA9790", "#D5BC8A")
-
-
-# create list object of transcripts
-polyA_transcripts <- list(CIRI2 = colnames(ciri_polyA), CIRCexplorer2 = colnames(circ_polyA), circRNA_finder = colnames(cfnd_polyA), find_circ = colnames(fcrc_polyA))
-ribo0_transcripts <- list(CIRI2 = colnames(ciri_ribo0), CIRCexplorer2 = colnames(circ_ribo0), circRNA_finder = colnames(cfnd_ribo0), find_circ = colnames(fcrc_ribo0))
-
-# plot venn diagram
-p1 <- ggvenn(polyA_transcripts, 
-        fill_color = pal, stroke_size = 0.5, set_name_size = 4) + 
-        theme(plot.title = element_text(hjust = 0.5, size = 15)) + labs(title = "poly(A)-Selection\n")
-p2 <- ggvenn(ribo0_transcripts, 
-        fill_color = pal, stroke_size = 0.5, set_name_size = 4) + 
-        theme(plot.title = element_text(hjust = 0.5, size = 15)) + labs(title = "RiboZero\n")
-
-png("../results/figures/figure7/venndiagram_per_protocol.png", width=250, height=150, units='mm', res = 600, pointsize=80)
-ggarrange(p1, p2, ncol = 2, nrow = 1, common.legend = FALSE)
-dev.off()
-
-
-############################################################
-# Filter low exp transcripts
-############################################################
-
-ciri_polyA <- ciri_polyA[,-which(colnames(ciri_polyA) %in% names(which(colSums(ciri_polyA == 0) > 48)))]    #ncol: 405
-ciri_ribo0 <- ciri_ribo0[,-which(colnames(ciri_ribo0) %in% names(which(colSums(ciri_ribo0 == 0) > 48)))]    #ncol: 1103
-
-circ_polyA <- circ_polyA[,-which(colnames(circ_polyA) %in% names(which(colSums(circ_polyA == 0) > 48)))]    #ncol: 7
-circ_ribo0 <- circ_ribo0[,-which(colnames(circ_ribo0) %in% names(which(colSums(circ_ribo0 == 0) > 48)))]    #ncol: 750
-
-cfnd_polyA <- cfnd_polyA[,-which(colnames(cfnd_polyA) %in% names(which(colSums(cfnd_polyA == 0) > 48)))]    #ncol: 357
-cfnd_ribo0 <- cfnd_ribo0[,-which(colnames(cfnd_ribo0) %in% names(which(colSums(cfnd_ribo0 == 0) > 48)))]    #ncol: 853
-
-fcrc_polyA <- fcrc_polyA[,-which(colnames(fcrc_polyA) %in% names(which(colSums(fcrc_polyA == 0) > 48)))]    #ncol: 742
-fcrc_ribo0 <- fcrc_ribo0[,-which(colnames(fcrc_ribo0) %in% names(which(colSums(fcrc_ribo0 == 0) > 48)))]    #ncol: 476
-
-# REMOVED CIRC DUE TO DISCREPANCY
-
-############################################################
-# Keep transcripts common across all pipelines
-############################################################
-
-# function to order circRNA dataframes and keep only transcripts found in both samples for each pipeline
-subset_df <- function(df, common_transcripts) {
-
-    # keep circRNA transcripts found in all psets for each pipeline
-    df <- df[,which(colnames(df) %in% common_transcripts)]
-    df <- df[,order(colnames(df))]
-
-    return(df)
+valid <- c("circ", "GE")
+if (is.na(analysis) || !analysis %in% valid) {
+  stop(
+    sprintf("Invalid analysis argument '%s'. Must be one of: %s",
+            analysis, paste(valid, collapse = ", ")),
+    call. = FALSE
+  )
 }
 
-# get common gene transcripts found in all psets for each pipeline
-polyA_common <- intersect(intersect(colnames(ciri_polyA), colnames(cfnd_polyA)), colnames(fcrc_polyA))     #n: 13
-ribo0_common <- intersect(intersect(colnames(ciri_ribo0), colnames(cfnd_ribo0)), colnames(fcrc_ribo0))     #n: 687
+############################################################
+# Load in and prepare metadata
+############################################################
 
-# filter for common transcripts
-ciri_polyA <- subset_df(ciri_polyA, polyA_common)
-cfnd_polyA <- subset_df(cfnd_polyA, polyA_common)
-fcrc_polyA <- subset_df(fcrc_polyA, polyA_common)
+# load in metadata
+polyA_meta <- read.table("../data/rnaseq_meta/lung_polyA.tsv", header = TRUE)
+ribo0_meta <- read.csv("../data/rnaseq_meta/lung_ribozero.csv")
 
-ciri_ribo0 <- subset_df(ciri_ribo0, ribo0_common)
-cfnd_ribo0 <- subset_df(cfnd_ribo0, ribo0_common)
-fcrc_ribo0 <- subset_df(fcrc_ribo0, ribo0_common)
+# keep common 51 (and order)
+polyA_meta <- polyA_meta[match(ribo0_meta$TB_id, polyA_meta$TB_id), ]
 
 
 ############################################################
-# Compute pairwise Spearman corr from datasets 
+# Load in counts matrices and keep common samples
 ############################################################
 
-# function to compute pairwise spearman correlations
-compute_spearman <- function(
-    ciri_df, cfnd_df, fcrc_df, 
-    random = FALSE,         #   random: TRUE for random sampling of sample names, FALSE otherwise
-    iter = 1                #   iter: number of iterations to be performed (for random sampling and SI computation)
-) {
+# helper function to load in count matrices
+load_lung <- function(filename, analysis) {
+  # load data
+  indir <- paste0("../data/processed_lung/", analysis, "/")
+  df <- fread(paste0(indir, filename), data.table = FALSE)
+  # get protocol
+  protocol <- sub(".*_", "", sub("_counts.tsv", "", filename))
+  # match samples to metadata
+  if (protocol == "polyA") {
+    df <- df[match(polyA_meta$sample, df$sample), ]
+  } else if (protocol == "ribo0") {
+    df <- df[match(ribo0_meta$helab_id, df$sample), ]
+  } else {
+    print(paste("Unable to determine protocol for", filename))
+  }
+  rownames(df) <- paste0("tumour", c(1:51))
+  df$sample <- NULL
 
-    # initialize dataframe to store results
-    correlations <- data.frame(matrix(nrow=0, ncol=3))
-
-    # loop through for number of iterations
-    for (i in 1:iter) {
-    
-        if (i %% 100 == 0) {print(i)}
-
-        if (random == TRUE) {
-            # shuffle cell line names
-            rownames(ciri_df) <- sample(rownames(ciri_df))
-            rownames(cfnd_df) <- sample(rownames(cfnd_df))
-            rownames(fcrc_df) <- sample(rownames(fcrc_df))
-        }
-
-        # order dataframe
-        ciri_df <- ciri_df[order(rownames(ciri_df)),]
-        cfnd_df <- cfnd_df[order(rownames(cfnd_df)),]
-        fcrc_df <- fcrc_df[order(rownames(fcrc_df)),]
-        
-        # loop through each common transcript
-        for (i in 1:ncol(ciri_df)) {
-            ciri_cfnd <- suppressWarnings(cor(x = as.numeric(ciri_df[, i]), y = as.numeric(cfnd_df[, i]), method = "spearman")) 
-            ciri_fcrc <- suppressWarnings(cor(x = as.numeric(ciri_df[, i]), y = as.numeric(fcrc_df[, i]), method = "spearman")) 
-            cfnd_fcrc <- suppressWarnings(cor(x = as.numeric(cfnd_df[, i]), y = as.numeric(fcrc_df[, i]), method = "spearman")) 
-
-            correlations <- rbind(correlations, c(ciri_cfnd, ciri_fcrc, cfnd_fcrc))
-            rownames(correlations)[i] <- colnames(ciri_df)[i]
-        }
-    } 
-    colnames(correlations) <- c("CIRI/CFND", "CIRI/FCRC", "CFND/FCRC")
-    return(correlations)
+  # filter to keep only transcripts in at least 6 samples
+  df <- df[,-which(colSums(df == 0) > 45)]
+  print(dim(df))
+  return(df)
 }
 
-# compute spearman correlations
-polyA_stability <- compute_spearman(ciri_polyA, cfnd_polyA, fcrc_polyA)
-ribo0_stability <- compute_spearman(ciri_ribo0, cfnd_ribo0, fcrc_ribo0)
+indir <- paste0("../data/processed_lung/", analysis, "/")
+print(paste("Loading in files from:", indir))
 
-save(polyA_stability, ribo0_stability, file = "../results/data/temp/circ_lung_stability.RData")
+# load in count matrices
+ciri_polyA <- load_lung("ciri_polyA_counts.tsv", analysis)
+ciri_ribo0 <- load_lung("ciri_ribo0_counts.tsv", analysis)
+circ_polyA <- load_lung("circ_polyA_counts.tsv", analysis)
+circ_ribo0 <- load_lung("circ_ribo0_counts.tsv", analysis)
+cfnd_polyA <- load_lung("cfnd_polyA_counts.tsv", analysis)
+cfnd_ribo0 <- load_lung("cfnd_ribo0_counts.tsv", analysis)
+fcrc_polyA <- load_lung("fcrc_polyA_counts.tsv", analysis)
+fcrc_ribo0 <- load_lung("fcrc_ribo0_counts.tsv", analysis)
 
-# compute spearman correlations after random shuffling
-polyA_stability_random <- compute_spearman(ciri_polyA, cfnd_polyA, fcrc_polyA, random = TRUE, iter = 1000)
-ribo0_stability_random <- compute_spearman(ciri_ribo0, cfnd_ribo0, fcrc_ribo0, random = TRUE, iter = 1000)
 
-save(polyA_stability_random, ribo0_stability_random, file = "../results/data/temp/circ_lung_stability_random.RData")
+############################################################
+# Compute pairwise Spearman corr from datasets
+############################################################
+
+print("Starting polyA stability indices")
+polyA_stability <- rbind(
+    compute_stability_index(ciri_polyA, circ_polyA, "ciri", "circ", "polyA"),
+    compute_stability_index(ciri_polyA, cfnd_polyA, "ciri", "cfnd", "polyA"),
+    compute_stability_index(ciri_polyA, fcrc_polyA, "ciri", "fcrc", "polyA"),
+    compute_stability_index(circ_polyA, cfnd_polyA, "circ", "cfnd", "polyA"),
+    compute_stability_index(circ_polyA, fcrc_polyA, "circ", "fcrc", "polyA"),
+    compute_stability_index(cfnd_polyA, fcrc_polyA, "cfnd", "fcrc", "polyA")
+)
+
+print("Starting ribo0 stability indices")
+ribo0_stability <- rbind(
+    compute_stability_index(ciri_ribo0, circ_ribo0, "ciri", "circ", "ribo0"),
+    compute_stability_index(ciri_ribo0, cfnd_ribo0, "ciri", "cfnd", "ribo0"),
+    compute_stability_index(ciri_ribo0, fcrc_ribo0, "ciri", "fcrc", "ribo0"),
+    compute_stability_index(circ_ribo0, cfnd_ribo0, "circ", "cfnd", "ribo0"),
+    compute_stability_index(circ_ribo0, fcrc_ribo0, "circ", "fcrc", "ribo0"),
+    compute_stability_index(cfnd_ribo0, fcrc_ribo0, "cfnd", "fcrc", "ribo0")
+)
+
+print("Starting polyA random stability indices")
+polyA_stability_random <- rbind(
+    compute_stability_index(ciri_polyA, circ_polyA, "ciri", "circ", "polyA", random = TRUE, iter = 100),
+    compute_stability_index(ciri_polyA, cfnd_polyA, "ciri", "cfnd", "polyA", random = TRUE, iter = 100),
+    compute_stability_index(ciri_polyA, fcrc_polyA, "ciri", "fcrc", "polyA", random = TRUE, iter = 100),
+    compute_stability_index(circ_polyA, cfnd_polyA, "circ", "cfnd", "polyA", random = TRUE, iter = 100),
+    compute_stability_index(circ_polyA, fcrc_polyA, "circ", "fcrc", "polyA", random = TRUE, iter = 100),
+    compute_stability_index(cfnd_polyA, fcrc_polyA, "cfnd", "fcrc", "polyA", random = TRUE, iter = 100)
+)
+
+print("Starting ribo0 random stability indices")
+ribo0_stability_random <- rbind(
+    compute_stability_index(ciri_ribo0, circ_ribo0, "ciri", "circ", "ribo0", random = TRUE, iter = 100),
+    compute_stability_index(ciri_ribo0, cfnd_ribo0, "ciri", "cfnd", "ribo0", random = TRUE, iter = 100),
+    compute_stability_index(ciri_ribo0, fcrc_ribo0, "ciri", "fcrc", "ribo0", random = TRUE, iter = 100),
+    compute_stability_index(circ_ribo0, cfnd_ribo0, "circ", "cfnd", "ribo0", random = TRUE, iter = 100),
+    compute_stability_index(circ_ribo0, fcrc_ribo0, "circ", "fcrc", "ribo0", random = TRUE, iter = 100),
+    compute_stability_index(cfnd_ribo0, fcrc_ribo0, "cfnd", "fcrc", "ribo0", random = TRUE, iter = 100)
+)
+
+# save checkpoint
+filename <- paste0("../results/data/temp/lung_stability_", analysis, ".RData")
+save(polyA_stability, ribo0_stability, polyA_stability_random, ribo0_stability_random, file = filename)
 
 
 ############################################################
