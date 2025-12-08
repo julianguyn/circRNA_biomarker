@@ -131,7 +131,7 @@ combined_df <- rbind(
 
 # format dataframe for plotting
 toPlot <- reshape2::melt(combined_df)
-toPlot$variable <- factor(toPlot$variable, levels = c("count_ribo0", "count_polyA"))
+toPlot$variable <- factor(toPlot$variable, levels = c("count_polyA", "count_ribo0"))
 toPlot$value <- log2(toPlot$value + 1)
 
 # plot heatmap of counts
@@ -150,9 +150,9 @@ ggplot(toPlot, aes(x = variable, y = samples, fill = value)) +
         legend.title=element_text(size=12),
         legend.text=element_text(size=12)) +
   scale_fill_viridis(limits=c(0, 13), option="mako", direction = -1) +
-  scale_x_discrete(labels = c("rRNA-\ndepleted", "poly(A)\nselected")) +
+  scale_x_discrete(labels = c("poly(A)\nselected", "rRNA-\ndepleted")) +
   guides(fill = guide_colourbar(barwidth = 0.2, barheight = 2, title = "log2(Counts)")) +
-  labs(x = "\nPipeline", y = "Tumour Sample")
+  labs(x = "\nProtocol", y = "Tumour Sample")
 dev.off()
 
 
@@ -222,6 +222,126 @@ filename <- paste0("../results/figures/figure7/prop_unique_", analysis, ".png")
 print(paste("Saving donuts to", filename))
 png(filename, width=12, height=3, units='in', res = 600, pointsize=80)
 ggarrange(p1, p2, p3, p4, ncol = 4, common.legend = TRUE, legend = "right")
+dev.off()
+
+# -------------- Pick one plot:
+
+############################################################
+# Plot difference in expression between matched transcripts
+############################################################
+
+diff_common_transcript <- function(polyA_df, ribo0_df, pipeline) {
+
+  # keep common transcripts
+  transcripts <- intersect(colnames(polyA_df), colnames(ribo0_df))
+  polyA_df <- polyA_df[, transcripts]
+  ribo0_df <- ribo0_df[, transcripts]
+
+  # get difference of log2 expression
+  polyA_df <- log2(polyA_df + 0.001)
+  ribo0_df <- log2(ribo0_df + 0.001)
+
+  diff_df <- ribo0_df - polyA_df
+
+  # remove those where expression was 0 in both datasets
+  keep <- !(polyA_df == 0 & ribo0_df == 0)
+  diff <- diff_df[keep]
+
+  # make results
+  df <- data.frame(pipeline = pipeline, diff = diff)
+  return(df)
+}
+
+toPlot <- rbind(
+  diff_common_transcript(ciri_polyA, ciri_ribo0, "CIRI2"),
+  diff_common_transcript(circ_polyA, circ_ribo0, "CIRCexplorer2"),
+  diff_common_transcript(cfnd_polyA, cfnd_ribo0, "circRNA_finder"),
+  diff_common_transcript(fcrc_polyA, fcrc_ribo0, "find_circ")
+)
+toPlot$pipeline <- factor(toPlot$pipeline, levels=c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
+
+# plot density plots of differences
+filename <- paste0("../results/figures/figure7/density_", analysis, ".png")
+print(paste("Saving density to", filename))
+png(filename, width=7, height=3, units='in', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = diff, fill = pipeline)) +
+  geom_density(alpha = 0.5) +
+  scale_fill_manual(values = pipeline_pal) +
+  theme_classic() +
+  theme(legend.key.size = unit(0.6, 'cm')) +
+  labs(x = "\nDifference in log2(expression)", y = "Density", fill = "Pipeline")
+dev.off()
+
+# plot violin plots of differences
+filename <- paste0("../results/figures/figure7/violin_", analysis, ".png")
+print(paste("Saving violin to", filename))
+png(filename, width=7, height=3, units='in', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = diff, y = pipeline, fill = pipeline)) +
+  geom_violin() +
+  scale_fill_manual(values = pipeline_pal) +
+  theme_classic() +
+  theme(legend.key.size = unit(0.6, 'cm')) +
+  labs(x = "\nDifference in log2(expression)", y = NULL, fill = "Pipeline")
+dev.off()
+
+
+############################################################
+# Plot heatmap of differences
+############################################################
+
+range <- max(max(toPlot$diff, abs(min(toPlot$diff)))) |> round() + 1
+
+plot_common_transcript <- function(polyA_df, ribo0_df, pipeline) {
+
+  # keep common transcripts
+  transcripts <- intersect(colnames(polyA_df), colnames(ribo0_df))
+  polyA_df <- polyA_df[, transcripts]
+  ribo0_df <- ribo0_df[, transcripts]
+
+  # get difference of log2 expression
+  polyA_df <- log2(polyA_df + 0.001)
+  ribo0_df <- log2(ribo0_df + 0.001)
+
+  diff_df <- ribo0_df - polyA_df
+
+  # remove those where expression was 0 in both datasets
+  keep <- !(polyA_df == 0 & ribo0_df == 0)
+  diff <- diff_df[keep]
+
+  # make results
+  df <- data.frame(pipeline = pipeline, diff = diff)
+  df <- df[order(df$diff, decreasing = TRUE), ]
+  df$rank <- 1:nrow(df)
+  
+  p <- ggplot(df, aes(y = 1, x = rank, fill = diff)) +
+    geom_tile(linewidth = 0) +
+    scale_fill_gradient2(
+      "Difference\nin log2(exp)",
+      low = "#BC4749",
+      high = "#689CB0",
+      mid = "#C2BBC9",
+      limits = c(-range, range)
+    ) +
+    theme_void() +
+    theme(
+        axis.title.y = element_text(size=9, hjust=1),
+        legend.title = element_text(size=8),
+        axis.ticks.y = element_line(color = "gray", linewidth = 0.3)
+    ) + 
+    labs(y = pipeline)
+  return(p)
+}
+
+# plot donut plots
+p1 <- plot_common_transcript(ciri_polyA, ciri_ribo0, "c1")
+p2 <- plot_common_transcript(circ_polyA, circ_ribo0, "c2")
+p3 <- plot_common_transcript(cfnd_polyA, cfnd_ribo0, "c3")
+p4 <- plot_common_transcript(fcrc_polyA, fcrc_ribo0, "c4")
+
+filename <- paste0("../results/figures/figure7/tile_", analysis, ".png")
+print(paste("Saving tiles to", filename))
+png(filename, width=6.5, height=2.5, units='in', res = 600, pointsize=80)
+ggarrange(p1, p2, p3, p4, nrow = 4, common.legend = TRUE, legend = "right")
 dev.off()
 
 print("done")

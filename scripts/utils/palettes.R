@@ -12,3 +12,8 @@ protocol_pal <- c(
     "ribo0" = "#5D536B",
     "both" = "#4D87BD"
 )
+
+binary_pal <- c(
+    "#899DA4", 
+    "#BC4749"
+)
