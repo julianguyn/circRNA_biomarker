@@ -56,6 +56,7 @@ compute_stability_index <- function(df1, df2, label1, label2, dataset, random = 
     )
     correlations$label <- label
     correlations$dataset <- dataset
+    correlations$random <- ifelse(random == TRUE, "Random", "NonRandom")
 
     return(correlations)
 }

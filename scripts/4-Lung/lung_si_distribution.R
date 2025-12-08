@@ -6,6 +6,7 @@ suppressPackageStartupMessages({
     library(ggvenn)
     library(reshape2)
     library(matrixStats)
+    library(stats)
 })
 
 options(stringsAsFactors = FALSE)
@@ -64,7 +65,7 @@ load_lung <- function(filename, analysis) {
   rownames(df) <- paste0("tumour", c(1:51))
   df$sample <- NULL
 
-  # filter to keep only transcripts in at least 6 samples
+  # filter to keep only transcripts in at least 6 samples **************
   df <- df[,-which(colSums(df == 0) > 45)]
   print(dim(df))
   return(df)
@@ -134,40 +135,65 @@ save(polyA_stability, ribo0_stability, polyA_stability_random, ribo0_stability_r
 
 
 ############################################################
-# Format stability index matrices for plotting
-############################################################
-
-# function to format stability dataframes
-format_df <- function(df, label, random = "NonRandom") {
-    toPlot <- reshape2::melt(df)
-    colnames(toPlot) <- c("Pipeline", "Stability")
-    toPlot$label <- label
-    toPlot$random <- random
-    return(toPlot)
-}
-
-polyA_stability <- format_df(polyA_stability, "polyA", "NonRandom")
-ribo0_stability <- format_df(ribo0_stability, "ribo0", "NonRandom")
-
-polyA_stability_random <- format_df(polyA_stability_random, "polyA", "Random")
-ribo0_stability_random <- format_df(ribo0_stability_random, "ribo0", "Random")
-
-
-############################################################
-# Plot stability index distribution 
+# Plot stability index distribution
 ############################################################
 
 # merge nonrandom results for plotting
 toPlot <- rbind(polyA_stability, ribo0_stability, polyA_stability_random, ribo0_stability_random)
-toPlot$label <- factor(toPlot$label, levels = c("polyA", "ribo0"), labels = c("PolyA", "Ribo0"))
+toPlot$dataset <- factor(toPlot$dataset, levels = c("polyA", "ribo0"))
+toPlot$label <- factor(
+  toPlot$label,
+  levels = c("ciri/circ", "ciri/cfnd", "ciri/fcrc", "circ/cfnd", "circ/fcrc", "cfnd/fcrc")
+)
 
-png("../results/figures/figure7/stability_lung.png", width=100, height=150, units='mm', res = 600, pointsize=80)
-ggplot(toPlot, aes(x = label, y = Stability, fill = label)) + 
-    geom_boxplot(data = toPlot, aes(alpha = random)) + 
-    scale_fill_manual(values = c("#4CC5AB", "#392C57", "grey")) +
+filename <- paste0("../results/figures/figure7/stability_lung_", analysis, ".png")
+png(filename, width=4, height=9, units='in', res = 600, pointsize=80)
+ggplot(toPlot, aes(x = dataset, y = stability, fill = dataset)) +
+    geom_boxplot(data = toPlot, aes(alpha = random)) +
+    scale_fill_manual(values = protocol_pal, labels = c("poly(A)-selection", "rRNA-depletion")) +
     scale_alpha_manual(values = c(1, 0.2)) +
-    facet_grid(factor(Pipeline)~.) +
-    theme_classic() + labs(x = "", fill = "", y = "Stability Index", alpha = "Randomization") +
-    theme(panel.border = element_rect(color = "black", fill = NA, size = 0.3), legend.key.size = unit(0.7, 'cm')) +
+    facet_grid(factor(label)~.) +
+    scale_x_discrete(labels = c("poly(A)\nselected", "rRNA-\ndepleted")) +
+    theme_classic() +
+    theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.3), legend.key.size = unit(0.7, 'cm')) +
+    labs(x = "", fill = "", y = "Stability Index", alpha = "Randomization") +
     geom_hline(yintercept = 0, linetype = "dotted")
 dev.off()
+
+############################################################
+# Wilcoxon rank sum test (+ numbers)
+############################################################
+
+for (pair in unique(toPlot$label)) {
+  print(paste("Working on:", pair))
+  subset <- toPlot[toPlot$label == pair, ]
+
+  p_ran <- subset[which(subset$dataset == "polyA" & subset$random == "Random"), ]
+  p_non <- subset[which(subset$dataset == "polyA" & subset$random == "NonRandom"), ]
+  r_ran <- subset[which(subset$dataset == "ribo0" & subset$random == "Random"), ]
+  r_non <- subset[which(subset$dataset == "ribo0" & subset$random == "NonRandom"), ]
+
+  # print numbers
+  print(paste("---", "PolyA:", nrow(p_non)))
+  print(paste("---", "Ribo0:", nrow(r_non)))
+
+  if (nrow(p_non) == 0 || nrow(r_non) == 0) {
+    message("")
+  } else {
+    # all nonrandom vs random
+    p_w <- wilcox.test(p_non$stability, p_ran$stability, alternative = "greater", exact = FALSE)
+    r_w <- wilcox.test(r_non$stability, r_ran$stability, alternative = "greater", exact = FALSE)
+    p <- ifelse(p_w$p.value < 0.05, "*", " ")
+    r <- ifelse(r_w$p.value < 0.05, "*", " ")
+    print("Nonrandom > random:")
+    print(paste("---", "polya:", p_w$p.value, p))
+    print(paste("---", "ribo0:", r_w$p.value, r))
+
+    # all polyA vs ribo0
+    w <- wilcox.test(r_non$stability, p_non$stability, alternative = "greater", exact = FALSE)
+    p <- ifelse(w$p.value < 0.05, "*", " ")
+    print("Ribo0 > polyA:")
+    print(paste("---", w$p.value, p))
+    message("")
+  }
+}
