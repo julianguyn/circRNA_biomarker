@@ -147,7 +147,7 @@ toPlot$label <- factor(
 )
 
 filename <- paste0("../results/figures/figure7/stability_lung_", analysis, ".png")
-png(filename, width=4, height=9, units='in', res = 600, pointsize=80)
+png(filename, width=4, height=10, units='in', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = dataset, y = stability, fill = dataset)) +
     geom_boxplot(data = toPlot, aes(alpha = random)) +
     scale_fill_manual(values = protocol_pal, labels = c("poly(A)-selection", "rRNA-depletion")) +

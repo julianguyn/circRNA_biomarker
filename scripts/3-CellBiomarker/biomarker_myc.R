@@ -309,7 +309,7 @@ plot_volcano <- function(bin_dr) {
                         aes(x = diff, y = -log(FDR), label = to_label),
                         force_pull = 0.5, max.overlaps = Inf, force = 5,
                         box.padding = 0.4) +
-        geom_hline(yintercept = -log(0.05), linetype = "dotted") +
+        geom_hline(yintercept = -log(0.1), linetype = "dotted") +
         scale_color_manual(
             values = c("CFND_CCLE" = "#9393cfff", "FCRC_CCLE" = "#271D80", "FCRC_GDSC" = "#6F1E27"), 
             labels = c("CFND_CCLE" = "CCLE (circRNA_finder)", "FCRC_CCLE" = "CCLE (find_circ)", "FCRC_GDSC" = "GDSC2 (find_circ)"),
@@ -329,13 +329,12 @@ toPlot <- rbind(ciri_gcsi_bin, ciri_gdsc_bin, ciri_ccle_bin,
 
 toPlot <- toPlot[!is.na(toPlot$diff),]
 
-# label overlapping associations
+# label top 20 associations
 toPlot$temp <- paste(toPlot$pair, toPlot$label, sep = "_")
-to_keep <- toPlot[toPlot$FDR < 0.05,]$temp
-toPlot$to_label <- ifelse(toPlot$temp %in% to_keep, as.character(toPlot$Drug), "")
+toPlot <- toPlot[order(abs(toPlot$diff), decreasing = TRUE),]
+top20 <- toPlot$temp[toPlot$FDR < 0.1][1:20]
+toPlot$to_label <- ifelse(toPlot$temp %in% top20, as.character(toPlot$Drug), "")
 
-# keep only associations with magnitude difference > 0.08
-toPlot[abs(toPlot$diff) < 0.08,]$to_label <- ""
 
 # label by significance
 toPlot$Label <- ifelse(toPlot$FDR < 0.05, "FDR\nSignificant", "Not FDR\nSignificant")
@@ -384,7 +383,7 @@ formatMYC <- function(drug_df, label) {
             if (subset[subset$Drug == drug,]$pval < 0.05) { #P-Val < 0.05
                 df$Status[i] <- "*"
             }
-            if (subset[subset$Drug == drug,]$FDR < 0.05) { #FDR < 0.05
+            if (subset[subset$Drug == drug,]$FDR < 0.1) { #FDR < 0.05
                 df$Status[i] <- "**"
             }
         }
