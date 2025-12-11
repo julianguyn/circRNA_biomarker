@@ -12,10 +12,10 @@ suppressPackageStartupMessages({
     library(caret)
 })
 
-set.seed(200) 
+set.seed(200)
 
 ############################################################
-# Load in data 
+# Load in data
 ############################################################
 
 # load circRNA expression data (subsetted in si_distribution.R)
