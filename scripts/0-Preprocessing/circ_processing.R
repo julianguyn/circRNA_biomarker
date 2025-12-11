@@ -16,80 +16,112 @@ source("utils/circ_processing.R")
 #suppressMessages(library(stringr))
 #suppressMessages(library(ComplexHeatmap))
 
+# -----------------------------------------------------------
+# Parse args
+# -----------------------------------------------------------
 
-############################################################
-# Function to compile
-############################################################
+args <- commandArgs(trailingOnly = TRUE)
+analysis <- args[1]
 
-#' Function to process raw circRNA count matrices
-#' 
-#' @param type string. Either "cells" or "lungs"
-#' 
-process_raw_counts <- function(type) {
-
-  # get input dirs
-  dir <- switch(
-    type,
-    cells = "../data/raw_cellline",
-    lungs = "../data/raw_lung"
+valid <- c("cells", "lung")
+if (is.na(analysis) || !analysis %in% valid) {
+  stop(
+    sprintf("Invalid analysis argument '%s'. Must be one of: %s",
+            analysis, paste(valid, collapse = ", ")),
+    call. = FALSE
   )
-
-  files <- list.files(dir, recursive = TRUE, pattern = ".*counts.tsv")
-
-  for (file in files) {
-
-    print(paste("Starting file:", file))
-    counts <- fread(paste0(dir, "/", file), data.table = FALSE)
-    colnames(counts)[1] <- "sample"
-
-    # catch the ribo0 lungs
-    counts$sample <- sub("_INPUT", "", counts$sample)
-
-    # extract variables
-    pipeline <- sub("/.*", "", file)
-    count_file <- sub(".*/", "", file)
-    dataset <- sub(".*_", "", sub(".*/", "", sub("_counts.tsv", "", file)))
-    label <- paste(type, dataset, sep = "_")
-
-    # get library sizes for dataset
-    lib <- switch(
-      label,
-      cells_gcsi = "../data/raw_cellline/readCounts/gcsi.tsv",
-      cells_ccle = "../data/raw_cellline/readCounts/ccle.tsv",
-      cells_gdsc = "../data/raw_cellline/readCounts/gdsc.tsv",
-      lungs_polyA = "../data/raw_lung/readCounts/polyA.tsv",
-      lungs_ribo0 = "../data/raw_lung/readCounts/ribo0.tsv"
-    )
-    print(paste("Reading in library file:", lib))
-    reads <- read.table(lib, header = TRUE)
-
-    # normalize by read depth
-    counts <- get_cpm(counts, reads)
-
-    # average across technical replicates
-    counts <- avg_reps(counts)
-
-    # save normalized counts
-    outdir <- sub("raw", "processed", dir)
-    if (!dir.exists(paste0(outdir, "/", pipeline))) {
-      dir.create(paste0(outdir, "/", pipeline), recursive = TRUE)
-    }
-    outfile <- paste0(outdir, "/", pipeline, "/", count_file)
-    print(paste("Saving normalized counts to:", outfile))
-    write.table(
-      counts,
-      file = outfile,
-      quote = FALSE,
-      sep = "\t",
-      col.names = TRUE,
-      row.names = FALSE
-    )
-  }
-  print("done")
 }
 
-process_raw_counts("cells")
-process_raw_counts("lungs")
+
+############################################################
+# Load in metadata
+############################################################
+
+#gcsi <- readRDS("gCSI.rds") |> updateObject()
+#gcsi_metadata <- gcsi@molecularProfiles$Kallisto_0.46.1.rnaseq@colData 
+#write.table(gcsi_metadata, file = "../data/rnaseq_meta/tissue_meta/gcsi_metadata.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+
+#gdsc <- readRDS("GDSC2-8.2.rds") |> updateObject()
+#gdsc_metadata <- gdsc@molecularProfiles$Kallisto_0.46.1.rnaseq@colData
+#write.table(gdsc_metadata, file = "../data/rnaseq_meta/tissue_meta/gdsc_metadata.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+
+#ccle <- readRDS("CCLE.rds") |> updateObject()
+#ccle_metadata <- ccle@molecularProfiles$Kallisto_0.46.1.rnaseq@colData
+#write.table(ccle_metadata, file = "../data/rnaseq_meta/tissue_meta/ccle_metadata.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
+
+
+# load in metadata for tissue-specific analysis
+gcsi_tmeta <- fread("../data/rnaseq_meta/tissue_meta/gcsi_metadata.tsv")
+ccle_tmeta <- fread("../data/rnaseq_meta/tissue_meta/ccle_metadata.tsv")
+gdsc_tmeta <- fread("../data/rnaseq_meta/tissue_meta/gdsc_metadata.tsv")
+
+
+############################################################
+# Load in metadata
+############################################################
+
+
+# get input dirs
+dir <- switch(
+  analysis,
+  cells = "../data/raw_cellline",
+  lungs = "../data/raw_lung"
+)
+
+files <- list.files(dir, recursive = TRUE, pattern = ".*counts.tsv")
+
+for (file in files) {
+
+  print(paste("Starting file:", file))
+  counts <- fread(paste0(dir, "/", file), data.table = FALSE)
+  colnames(counts)[1] <- "sample"
+
+  # catch the ribo0 lungs
+  counts$sample <- sub("_INPUT", "", counts$sample)
+
+  # extract variables
+  pipeline <- sub("/.*", "", file)
+  count_file <- sub(".*/", "", file)
+  dataset <- sub(".*_", "", sub(".*/", "", sub("_counts.tsv", "", file)))
+  label <- paste(analysis, dataset, sep = "_")
+
+  # get library sizes for dataset
+  lib <- switch(
+    label,
+    cells_gcsi = "../data/raw_cellline/readCounts/gcsi.tsv",
+    cells_ccle = "../data/raw_cellline/readCounts/ccle.tsv",
+    cells_gdsc = "../data/raw_cellline/readCounts/gdsc.tsv",
+    lungs_polyA = "../data/raw_lung/readCounts/polyA.tsv",
+    lungs_ribo0 = "../data/raw_lung/readCounts/ribo0.tsv"
+  )
+  print(paste("Reading in library file:", lib))
+  reads <- read.table(lib, header = TRUE)
+
+  # normalize by read depth
+  counts <- get_cpm(counts, reads)
+
+  # average across technical replicates
+  counts <- avg_reps(counts)
+
+  # save normalized counts
+  outdir <- sub("raw", "processed", dir)
+  if (!dir.exists(paste0(outdir, "/", pipeline))) {
+    dir.create(paste0(outdir, "/", pipeline), recursive = TRUE)
+  }
+  outfile <- paste0(outdir, "/", pipeline, "/", count_file)
+  print(paste("Saving normalized counts to:", outfile))
+  write.table(
+    counts,
+    file = outfile,
+    quote = FALSE,
+    sep = "\t",
+    col.names = TRUE,
+    row.names = FALSE
+  )
+}
+print("done")
+
+
 
 ############################################################
 # Load in data
@@ -114,25 +146,7 @@ suppressWarnings(fcrc_ccle <- fread("../data/raw_cellline/find_circ/fcrc_ccle_co
 
 
 # load in metadata for tissue-specific analysis
-#gcsi <- readRDS("gCSI.rds") 
-#gcsi <- updateObject(gcsi)
-#gcsi_metadata <- gcsi@molecularProfiles$Kallisto_0.46.1.rnaseq@colData #extract metadata of cell lines
-#write.table(gcsi_metadata, file = "../data/rnaseq_meta/tissue_meta/gcsi_metadata.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
 
-#gdsc <- readRDS("GDSC2-8.2.rds")
-#gdsc <- updateObject(gdsc)
-#gdsc_metadata <- gdsc@molecularProfiles$Kallisto_0.46.1.rnaseq@colData
-#write.table(gdsc_metadata, file = "../data/rnaseq_meta/tissue_meta/gdsc_metadata.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
-
-#ccle <- readRDS("CCLE.rds")
-#ccle <- updateObject(ccle)
-#ccle_metadata <- ccle@molecularProfiles$Kallisto_0.46.1.rnaseq@colData
-#write.table(ccle_metadata, file = "../data/rnaseq_meta/tissue_meta/ccle_metadata.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
-
-# load in tissue metadata
-gcsi_tmeta <- fread("../data/rnaseq_meta/tissue_meta/gcsi_metadata.tsv")
-ccle_tmeta <- fread("../data/rnaseq_meta/tissue_meta/ccle_metadata.tsv")
-gdsc_tmeta <- fread("../data/rnaseq_meta/tissue_meta/gdsc_metadata.tsv")
 
 
 # function to match cell.id to unique.cellid from PharmacoGx
@@ -151,71 +165,6 @@ matchToIDTable <- function(
     return(tbl[myx, returnColumn])
   })
 }
-
-
-# ========== Determine biological replicates across datasets ========== #
-
-# read in common cells
-cell_all <- read.csv(file = "../data/rnaseq_meta/cell_annotation_all.csv", na.strings=c("", " ", "NA"))
-
-#read in gcsi cell annotations
-gcsi <- read.csv(file = "../data/rnaseq_meta/gcsi_rnaseq_meta.csv")
-gcsi <- gcsi[,colnames(gcsi) %in% c("cellid", "alias", "Cell_line")]
-gcsi$cellid <- matchToIDTable(ids=gcsi$Cell_line , tbl = cell_all, column = "GNE.cellid", returnColumn = "unique.cellid")
-rownames(gcsi) <- gcsi$alias
-
-#read in ccle cell annotations
-ccle <- read.csv(file = "../data/rnaseq_meta/ccle_rnaseq_meta.csv")
-ccle <- ccle[,colnames(ccle) %in% c("cellid", "Run", "Cell_Line")]
-ccle$cellid <- matchToIDTable(ids=ccle$Cell_Line , tbl = cell_all, column = "CCLE.cellid", returnColumn = "unique.cellid")
-rownames(ccle) <- ccle$Run
-
-#read in gdsc cell annotations
-gdsc <- read.csv("../data/rnaseq_meta/gdsc/sample_file.csv")
-gdsc_mapping <- read.csv("../data/rnaseq_meta/gdsc/samples.csv")
-gdsc$file_name <- gsub("\\..*", "", gdsc$file_name)
-gdsc <- gdsc[gdsc$file_name %in% ciri_gdsc$V1,]
-gdsc$sample_alias <- gdsc_mapping$subject_id[match(gdsc$sample_alias, gdsc_mapping$alias)]
-
-# match gdsc annotations
-gdsc$cellid <- matchToIDTable(ids = gdsc$sample_alias, tbl = cell_all, column = "GDSC_rnaseq.cellid", returnColumn = "unique.cellid")
-gdsc[is.na(gdsc$cellid),]$cellid <- matchToIDTable(ids = gdsc[is.na(gdsc$cellid),]$sample_alias, tbl = cell_all, column = "GDSC1000.cellid", returnColumn = "unique.cellid")
-gdsc[gdsc$sample_alias == "NCI-H820",]$cellid = "NCI-H820"
-gdsc[gdsc$sample_alias == "PC-3-JPC-3",]$cellid = "PC-3 [Human lung carcinoma]"
-gdsc[gdsc$sample_alias == "Geo",]$cellid = "GEO"
-gdsc[gdsc$sample_alias == "NTERA-2cl.D1",]$cellid = "NTERA-2"
-rownames(gdsc) <- gdsc$file_name
-
-# match sample to tissue metadata
-gcsi$tissue <- gcsi_tmeta$Tissue_supergroup[match(gcsi$Cell_line, gcsi_tmeta$Cell_line)]
-ccle$tissue <- str_to_title(gsub("_", " ", ccle_tmeta$tissue[match(ccle$Cell_Line, ccle_tmeta$Cell_Line)]))
-gdsc[gdsc$sample_alias == "Geo",]$sample_alias = "GEO"
-gdsc[gdsc$sample_alias == "NB(TU)1-10",]$sample_alias = "NB-TU-1-10"
-gdsc[gdsc$sample_alias == "NTERA-2cl.D1",]$sample_alias = "NTERA-2cl-D1"
-gdsc[gdsc$sample_alias == "UWB1.289",]$sample_alias = "UWB1-289"
-gdsc$tissue <- str_to_title(gdsc_tmeta$Factor.Value.organism.part.[match(gdsc$sample_alias, gdsc_tmeta$Source.Name)])
-
-# save metadata file
-save(gcsi, ccle, gdsc, file = "../results/data/tissue-metadata.RData")
-
-# rename rownames of gcsi dataframes
-ciri_gcsi$V1 <- gcsi$cellid[match(gsub("gcsi", "", ciri_gcsi$V1), rownames(gcsi))]
-circ_gcsi$V1 <- gcsi$cellid[match(gsub("gcsi", "", circ_gcsi$V1), rownames(gcsi))]
-cfnd_gcsi$V1 <- gcsi$cellid[match(gsub("gcsi", "", cfnd_gcsi$V1), rownames(gcsi))]
-fcrc_gcsi$V1 <- gcsi$cellid[match(gsub("gcsi", "", fcrc_gcsi$V1), rownames(gcsi))]
-
-# rename rownames of ccle dataframes
-ciri_ccle$V1 <- ccle$cellid[match(ciri_ccle$V1, rownames(ccle))]
-circ_ccle$V1 <- ccle$cellid[match(circ_ccle$V1, rownames(ccle))]
-cfnd_ccle$V1 <- ccle$cellid[match(cfnd_ccle$V1, rownames(ccle))]
-fcrc_ccle$V1 <- ccle$cellid[match(fcrc_ccle$V1, rownames(ccle))]
-
-# rename rownames of gdsc dataframes
-ciri_gdsc$V1 <- gdsc$cellid[match(ciri_gdsc$V1, rownames(gdsc))]
-circ_gdsc$V1 <- gdsc$cellid[match(circ_gdsc$V1, rownames(gdsc))]
-cfnd_gdsc$V1 <- gdsc$cellid[match(cfnd_gdsc$V1, rownames(gdsc))]
-fcrc_gdsc$V1 <- gdsc$cellid[match(fcrc_gdsc$V1, rownames(gdsc))]
-
 
 # ========== Normalize by read depth ========== #
 

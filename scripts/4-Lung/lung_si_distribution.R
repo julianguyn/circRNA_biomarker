@@ -146,7 +146,7 @@ toPlot$label <- factor(
   levels = c("ciri/circ", "ciri/cfnd", "ciri/fcrc", "circ/cfnd", "circ/fcrc", "cfnd/fcrc")
 )
 
-filename <- paste0("../results/figures/figure7/stability_lung_", analysis, ".png")
+filename <- paste0("../results/figures/figure4/stability_lung_", analysis, ".png")
 png(filename, width=4, height=10, units='in', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = dataset, y = stability, fill = dataset)) +
     geom_boxplot(data = toPlot, aes(alpha = random)) +

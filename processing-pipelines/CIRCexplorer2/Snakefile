@@ -1,0 +1,82 @@
+configfile: "config.yaml"
+
+import pandas as pd
+import os
+
+samples = pd.read_table(
+    config["sample_file"]
+).set_index(
+    "sample", drop=False
+)
+
+output_dir = os.environ.get("output_dir")
+
+def get_r1(wildcards):
+    return samples.read1[wildcards.sample]
+
+def get_r2(wildcards):
+    return samples.read2[wildcards.sample]
+
+
+rule all:
+    input: expand(
+        "{output_dir}/annotate/{sample}/{sample}_circularRNA_known.txt", 
+        sample = samples["sample"], 
+        output_dir=output_dir
+        )
+
+rule align:
+    input: 
+        r1 =  get_r1, 
+        r2 =  get_r2
+    params:
+        runtime="48:00:00",
+        od="{output_dir}/alignment/{sample}/{sample}_",
+        gtf="/cluster/projects/bhklab/references/GENCODE/human/GRCh38_v45/annotation.gtf",
+        idx="/cluster/projects/bhklab/references/GENCODE/human/GRCh38_v45/STAR.v2.7.9a_index",
+	partition="himem"
+    output: "{output_dir}/alignment/{sample}/{sample}_Chimeric.out.junction"
+    threads: 10
+    resources: mem_mb=42000
+    shell:
+     """
+     module load STAR/2.7.9a
+     STAR --chimSegmentMin 10 --runThreadN 10 --genomeDir {params.idx} --readFilesCommand gunzip -c --sjdbGTFfile {params.gtf} --outFileNamePrefix {params.od} --outSAMorder Paired --quantMode GeneCounts --outSAMtype BAM SortedByCoordinate --outReadsUnmapped Fastx --outSAMattributes All --readFilesIn {input.r1} {input.r2}
+     ls =la {output}
+     """
+
+rule parse:
+    input: 
+        hits="{output_dir}/alignment/{sample}/{sample}_Chimeric.out.junction"
+    params:
+        runtime="8:00:00",
+        partition="all"
+    output: "{output_dir}/parse/{sample}/{sample}_back_spliced_junction.bed"
+    log:
+        "{output_dir}/parse/{sample}/logs/CIRCexplorer2_parse.log"
+    threads: 3
+    resources: mem_mb=15000
+    shell:
+     """
+     module load CIRCexplorer2
+     CIRCexplorer2 parse -t STAR {input.hits} -b {output} > {log}
+     """
+
+rule annotate:
+    input: 
+        bed="{output_dir}/parse/{sample}/{sample}_back_spliced_junction.bed",
+        gtf="/cluster/projects/bhklab/projects/circRNA_biomarker/CIRCexplorer2/ref/GRCh38_v45_annotation.genePred",
+        ref="/cluster/projects/bhklab/references/GENCODE/human/GRCh38_v45/genome.fa"
+    params:
+        runtime="8:00:00",
+        partition="all"
+    output: "{output_dir}/annotate/{sample}/{sample}_circularRNA_known.txt"
+    log:
+        "{output_dir}/annotate/{sample}/logs/CIRCexplorer2_annotate.log"
+    threads: 3
+    resources: mem_mb=15000
+    shell:
+     """
+     module load CIRCexplorer2
+     CIRCexplorer2 annotate -r {input.gtf} -g {input.ref} -b {input.bed} -o {output} > {log}
+     """ 

@@ -1,0 +1,20 @@
+# track completed codes
+
+
+0-Preprocessing
+circ_processing.R - need to complete online
+circ_to_gene_all.R --- do i even use this anywhere???
+circ_to_gene.R
+- check circExpToGene(), function in main script
+- if all not needed, remove hte filtering stuff
+circ_to_myc.R - done
+combine_pipeline_counts
+
+1-CellQuantification
+circ_quantification.R done
+**need to add script for processing gene and isoform expression
+
+2-CellStability
+
+3-Biomarkers done
+4-Lung done

@@ -1,0 +1,121 @@
+configfile: "config.yaml"
+
+
+import pandas as pd
+import os
+
+
+samples = pd.read_table(
+	config["sample_file"]
+).set_index(
+	"sample", drop=False
+)
+
+output_dir = os.environ.get("output_dir")
+
+
+def get_r1(wildcards):
+	return samples.read1[wildcards.sample]
+
+def get_r2(wildcards):
+	return samples.read2[wildcards.sample]
+
+  
+rule all:
+	input: expand(
+		"{output_dir}/find_circ/{sample}_circ.bed", 
+		sample = samples["sample"], 
+		output_dir=output_dir
+		)
+
+rule Mapping:
+	input:
+		r1 = get_r1,
+		r2 = get_r2,
+	params:
+		runtime="100:00:00",
+		bt = "/cluster/projects/bhklab/references/GENCODE/human/GRCh38_v45/BOWTIE2.v2.4.5_index",
+		partition="all"
+	output: "{output_dir}/mapped_bam/{sample}/{sample}.bam",
+	log: "{output_dir}/mapped_bam/logs/{sample}_bowtie2.log",
+	threads: 2
+	resources: mem_mb=15000
+	shell:
+		"""
+		module load bowtie2
+		module load samtools
+		bowtie2 -p16 --very-sensitive --score-min=C,-15,0 --mm -x {params.bt} -q -1 {input.r1} -2 {input.r2} 2> {log} | samtools view -hbuS - | samtools sort -o {output}
+		"""
+  
+rule unmapped:
+	input:
+		bam="{output_dir}/mapped_bam/{sample}/{sample}.bam",
+	params:
+		runtime="24:00:00",
+		partition="all"
+	output: "{output_dir}/unmapped_bam/{sample}/{sample}.bam"
+	threads: 3
+	resources: mem_mb=15000
+	shell:
+		"""
+		module load samtools
+		samtools view -hf 4 {input.bam} | samtools view -Sb - > {output}
+		"""  
+
+rule parse:
+	input:
+		bam="{output_dir}/unmapped_bam/{sample}/{sample}.bam",
+	params:
+		runtime="24:00:00",
+		partition="all"
+	output: "{output_dir}/parse/{sample}/{sample}.fastq.gz"
+	threads: 3
+	resources: mem_mb=15000
+	shell:
+		"""
+		module load pysam
+		/cluster/projects/bhklab/projects/circRNA_biomarker/pipelines/find_circ/unmapped2anchors.py {input.bam} > {output}
+		"""  
+
+rule align:
+	input:
+		fq="{output_dir}/parse/{sample}/{sample}.fastq.gz",
+	params:
+		runtime="24:00:00",
+		partition="all",
+		bt="/cluster/projects/bhklab/references/GENCODE/human/GRCh38_v45/BOWTIE2.v2.4.5_index"
+	output: "{output_dir}/align/{sample}/{sample}.sam"
+	threads: 3
+	resources: mem_mb=15000
+	shell:
+		"""
+		module load bowtie2
+		bowtie2 -p 16 --score-min=C,-15,0 --reorder --mm -q -U {input.fq} -x {params.bt} -S {output}
+		"""
+
+rule find_circ:
+	input: 
+		sam="{output_dir}/align/{sample}/{sample}.sam"
+	params:
+		runtime="24:00:00",
+		partition="himem",
+		script="/cluster/projects/bhklab/projects/circRNA_biomarker/pipelines/find_circ/find_circ.py",
+		genome="/cluster/projects/bhklab/references/GENCODE/human/GRCh38_v45/genome.fa",
+		name="{sample}"
+	output:
+		stats="{output_dir}/find_circ/{sample}_stats.txt",
+		reads="{output_dir}/find_circ/{sample}_spliced_reads.fa",
+		splice="{output_dir}/find_circ/{sample}_splice_sites.bed",
+		circ="{output_dir}/find_circ/{sample}_circ.bed"
+	threads: 4
+	resources: mem=50
+	shell:
+		"""
+		module load pysam
+		{params.script} {input.sam} \
+			--genome={params.genome} \
+			--name{params.name} \
+			--stats={output.stats}
+			--reads={output.reads} > {output.splice}
+		grep CIRCULAR {output.splice} > {output.circ}
+		"""

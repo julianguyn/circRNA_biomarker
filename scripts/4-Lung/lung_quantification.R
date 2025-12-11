@@ -101,7 +101,7 @@ plot_venn_protocol <- function(
 p1 <- plot_venn_protocol(ciri_polyA, circ_polyA, cfnd_polyA, fcrc_polyA, "Poly(A)-Selection")
 p2 <- plot_venn_protocol(ciri_ribo0, circ_ribo0, cfnd_ribo0, fcrc_ribo0, "rRNA-Depletion")
 
-filename <- paste0("../results/figures/figure7/venndiagram_", analysis, ".png")
+filename <- paste0("../results/figures/figure4/venndiagram_", analysis, ".png")
 png(filename, width=250, height=150, units='mm', res = 600, pointsize=80)
 ggarrange(p1, p2, ncol = 2, nrow = 1, common.legend = FALSE)
 dev.off()
@@ -135,7 +135,7 @@ toPlot$variable <- factor(toPlot$variable, levels = c("count_polyA", "count_ribo
 toPlot$value <- log2(toPlot$value + 1)
 
 # plot heatmap of counts
-filename <- paste0("../results/figures/figure7/heatmap_", analysis, ".png")
+filename <- paste0("../results/figures/figure4/heatmap_", analysis, ".png")
 print(paste("Saving heatmap to", filename))
 png(filename, width=250, height=200, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = variable, y = samples, fill = value)) + 
@@ -218,7 +218,7 @@ p2 <- plot_unique_transcripts(circ_polyA, circ_ribo0, "CIRCexplorer2")
 p3 <- plot_unique_transcripts(cfnd_polyA, cfnd_ribo0, "circRNA_finder")
 p4 <- plot_unique_transcripts(fcrc_polyA, fcrc_ribo0, "find_circ")
 
-filename <- paste0("../results/figures/figure7/prop_unique_", analysis, ".png")
+filename <- paste0("../results/figures/figure4/prop_unique_", analysis, ".png")
 print(paste("Saving donuts to", filename))
 png(filename, width=12, height=3, units='in', res = 600, pointsize=80)
 ggarrange(p1, p2, p3, p4, ncol = 4, common.legend = TRUE, legend = "right")
@@ -261,7 +261,7 @@ toPlot <- rbind(
 toPlot$pipeline <- factor(toPlot$pipeline, levels=c("CIRI2", "CIRCexplorer2", "circRNA_finder", "find_circ"))
 
 # plot density plots of differences
-filename <- paste0("../results/figures/figure7/density_", analysis, ".png")
+filename <- paste0("../results/figures/figure4/density_", analysis, ".png")
 print(paste("Saving density to", filename))
 png(filename, width=7, height=3, units='in', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = diff, fill = pipeline)) +
@@ -273,7 +273,7 @@ ggplot(toPlot, aes(x = diff, fill = pipeline)) +
 dev.off()
 
 # plot violin plots of differences
-filename <- paste0("../results/figures/figure7/violin_", analysis, ".png")
+filename <- paste0("../results/figures/figure4/violin_", analysis, ".png")
 print(paste("Saving violin to", filename))
 png(filename, width=7, height=3, units='in', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = diff, y = pipeline, fill = pipeline)) +
@@ -338,7 +338,7 @@ p2 <- plot_common_transcript(circ_polyA, circ_ribo0, "c2")
 p3 <- plot_common_transcript(cfnd_polyA, cfnd_ribo0, "c3")
 p4 <- plot_common_transcript(fcrc_polyA, fcrc_ribo0, "c4")
 
-filename <- paste0("../results/figures/figure7/tile_", analysis, ".png")
+filename <- paste0("../results/figures/figure4/tile_", analysis, ".png")
 print(paste("Saving tiles to", filename))
 png(filename, width=6.5, height=2.5, units='in', res = 600, pointsize=80)
 ggarrange(p1, p2, p3, p4, nrow = 4, common.legend = TRUE, legend = "right")

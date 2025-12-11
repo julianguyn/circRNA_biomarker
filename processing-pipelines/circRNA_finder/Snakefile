@@ -1,0 +1,64 @@
+configfile: "config.yaml"
+
+import pandas as pd
+import os
+
+samples = pd.read_table(
+    config["sample_file"]
+).set_index(
+    "sample", drop=False
+)
+
+output_dir = os.environ.get("output_dir")
+
+def get_r1(wildcards):
+    return samples.read1[wildcards.sample]
+
+def get_r2(wildcards):
+    return samples.read2[wildcards.sample]
+
+  
+rule all:
+    input: expand(
+        "{output_dir}/results/{sample}/logs.txt", 
+        sample = samples["sample"], 
+        output_dir=output_dir
+        )
+
+rule STAR:
+    input:
+        r1 = get_r1,
+        r2 = get_r2
+    params:
+        runtime="48:00:00",
+        ref_genome="/cluster/projects/bhklab/references/GENCODE/human/GRCh38_v45/STAR.v2.7.9a_index",
+        dir="{output_dir}/STAR/{sample}/",
+    output:"{output_dir}/STAR/{sample}/logs.txt"
+    threads: 10
+    resources: mem_mb=60000
+    shell:
+        """
+        module load perl
+        module load STAR
+        module load samtools
+        circRNA_finder/runStar.pl --inFile1 {input.r1} --inFile2 {input.r2} --genomeDir {params.ref_genome} --maxMismatch 0.02 --outPrefix {params.dir} > {output}
+        """
+
+
+rule postProcesss:
+    input:
+        file="{output_dir}/STAR/{sample}/logs.txt",
+    params:
+        runtime="8:00:00",
+        partition="all",
+        indir="{output_dir}/STAR/{sample}/",
+        od="{output_dir}/results/{sample}"
+    output: "{output_dir}/results/{sample}/logs.txt"
+    threads: 3
+    resources: mem_mb=40000
+    shell:
+        """
+        rm {input.file}
+        circRNA_finder/postProcessStarAlignment.pl --starDir {params.indir} --minLen [minimum length of circular RNAs] --outDir {params.od} > {output}
+        """  
+
