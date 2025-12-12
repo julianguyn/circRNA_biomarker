@@ -11,7 +11,7 @@ suppressPackageStartupMessages({
     library(PharmacoGx)
 })
 
-set.seed(200)  
+set.seed(200)
 
 
 ############################################################
@@ -31,15 +31,6 @@ load("../results/data/circ_stability_gdsc_features2.RData")
 ############################################################
 # Format circRNA dataframes
 ############################################################
-
-# helper function for one hot encoding
-one_hot_chr <- function(df) {
-  df$chr <- gsub("chr", "", df$chr)
-  chr_onehot <- model.matrix(~ chr - 1, data = df)
-  df <- cbind(df, chr_onehot)
-  df$chr <- NULL
-  return(df)
-}
 
 # function to format circRNA stability dataframes
 c_stability <- function(stability, gcsi, ccle, gdsc) {
@@ -76,7 +67,6 @@ c_stability <- function(stability, gcsi, ccle, gdsc) {
   stability$n_exon <- feats$nexons
   stability$length <- feats$length
   stability$chr <- gsub("\\..*", "", stability$transcript)
-  stability <- one_hot_chr(stability)
 
   return(stability)
 } 
@@ -91,37 +81,3 @@ write.csv(ciri_stability, file = "../results/data/temp/ciri_stability.csv", quot
 write.csv(circ_stability, file = "../results/data/temp/circ_stability.csv", quote = F, row.names = F)
 write.csv(cfnd_stability, file = "../results/data/temp/cfnd_stability.csv", quote = F, row.names = F)
 write.csv(fcrc_stability, file = "../results/data/temp/fcrc_stability.csv", quote = F, row.names = F)
-
-
-############################################################
-# Add chr to gene and isoform matrices
-############################################################
-
-gene_stability <- read.csv("../results/data/temp/ene_stability.csv")
-transcript_stability <- read.csv("../results/data/temp/transcript_stability.csv")
-
-# read in pset
-gcsi <- readRDS("../data/PSets/gCSI.rds")
-
-# helper function to get metadata
-get_mdata <- function(pset, mdata) {
-    if (mdata == "gene") mdata <- "Kallisto_0.46.1.rnaseq.counts"
-    if (mdata == "isoform") mdata <- "Kallisto_0.46.1.isoforms.counts"
-
-    pset <- summarizeMolecularProfiles(pset, mDataType = mdata)
-    meta <- rowData(pset)
-    return(meta)
-}
-
-gene <- get_mdata(gcsi, "gene")
-transcript <- get_mdata(gcsi, "isoform")
-
-# add chr
-gene_stability$chr <- gene$seqnames[match(gene_stability$transcript, rownames(gene))]
-transcript_stability$chr <- transcript$seqnames[match(transcript_stability$transcript, rownames(transcript))]
-
-gene_stability <- one_hot_chr(gene_stability)
-transcript_stability <- one_hot_chr(transcript_stability)
-
-write.csv(gene_stability, file = "../results/data/temp/gene_stability.csv", quote = F, row.names = F)
-write.csv(transcript_stability, file = "../results/data/temp/transcript_stability.csv", quote = F, row.names = F)

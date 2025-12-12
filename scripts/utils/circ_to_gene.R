@@ -62,3 +62,36 @@ circToGene <- function(gr) {
 
     return(mapping)
 }
+
+#' Function to map circRNA expression matrices to gene-level annotations
+#' 
+#' @param circ_map data.frame Output of circToGene()
+#' @param circ_exp data.frame. Expression matrix
+#' 
+circExpToGene <- function(circ_map, circ_exp) {
+
+    print("---Making circRNA-mapped-gene expression matrix")
+
+    # get dir labels
+    dir <- sub("/.*", "", file) # should return pipeline or 'circ'
+    label <- sub("_counts.tsv", "", sub(paste0(dir, "/"), "",  file)) 
+
+    # get circRNA-mapped-gene expression
+    gene_exp <- circ_exp %>%
+        pivot_longer(
+            cols = -sample, 
+            names_to = "old_name", 
+            values_to = "expression"
+        ) %>%
+        inner_join(circ_map, by = "old_name", relationship = "many-to-many") %>%
+        group_by(sample, gene) %>%
+        summarize(expression = mean(expression), .groups = "drop") %>%
+        pivot_wider(names_from = gene, values_from = expression) %>% 
+        as.data.frame()
+
+    # save output
+    dir <- ifelse(dir != "circ", paste0("processed_cellline/GE_common_samples/", dir),"processed_lung/GE")
+    filename <- paste0("../data/", dir, "/", label, "_counts.tsv")
+    print(paste("Saving output to", filename))
+    write.table(gene_exp, file = filename, quote = F, sep = "\t", col.names = T, row.names = F)
+}

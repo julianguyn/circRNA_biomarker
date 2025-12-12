@@ -1,6 +1,6 @@
 # colour palettes for manuscript
 
-pset_pal = c(
+pset_pal <- c(
     "gCSI" = "#51C7AD",
     "CCLE" = "#392C57",
     "GDSC2" = "#3670A0"
@@ -11,6 +11,12 @@ pipeline_pal <- c(
     "CIRCexplorer2" = "#BFD7EA",
     "circRNA_finder" = "#BA9790",
     "find_circ" = "#D5BC8A"
+)
+
+dataset_pal <- c(
+    "Gene_Expression" = "#23022E",
+    "Isoform_Expression" = "#611C35",
+    pipeline_pal
 )
 
 prop_pal <- c(

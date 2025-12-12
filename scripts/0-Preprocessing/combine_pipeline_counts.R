@@ -7,114 +7,44 @@ suppressPackageStartupMessages({
 
 
 ############################################################
-# Specify analysis
-############################################################
-
-# analysis = c("circ", "GE")  
-# circ for circRNA counts, GE for circ mapped to GE
-
-if (analysis == "circ") {
-    path <- "../data/processed_cellline/all_samples/" 
-    out <- "all_circ"
-    df <- "../data/processed_cellline/merged_all_samples/"
-}
-if (analysis == "GE") {
-    path <- "../data/processed_cellline/GE_common_samples/"
-    out <- "GE"
-    df <- "../data/processed_cellline/mergedGE_common_samples/"
-}
-
-
-############################################################
 # Load in circRNA expression data
 ############################################################
 
-print("Reading in dataframes")
+path <- "../data/processed_cellline/all_samples/"
 
-# load circRNA expression data
-ciri_gcsi <- fread(paste0(path, "CIRI2/ciri_gcsi_counts.tsv"), data.table = F)
-ciri_gdsc <- fread(paste0(path, "CIRI2/ciri_gdsc_counts.tsv"), data.table = F)
-ciri_ccle <- fread(paste0(path, "CIRI2/ciri_ccle_counts.tsv"), data.table = F)
+# helper function to read in and format dataframes
+load_counts <- function(filename) {
+    df <- fread(paste0(path, filename), data.frame = FALSE)
+    rownames(df) <- df$sample
+    df$sample <- NULL
+    df[is.na(df)] <- 0
 
-circ_gcsi <- fread(paste0(path, "CIRCexplorer2/circ_gcsi_counts.tsv"), data.table = F)
-circ_gdsc <- fread(paste0(path, "CIRCexplorer2/circ_gdsc_counts.tsv"), data.table = F)
-circ_ccle <- fread(paste0(path, "CIRCexplorer2/circ_ccle_counts.tsv"), data.table = F)
-
-cfnd_gcsi <- fread(paste0(path, "circRNA_finder/cfnd_gcsi_counts.tsv"), data.table = F)
-cfnd_gdsc <- fread(paste0(path, "circRNA_finder/cfnd_gdsc_counts.tsv"), data.table = F)
-cfnd_ccle <- fread(paste0(path, "circRNA_finder/cfnd_ccle_counts.tsv"), data.table = F)
-
-fcrc_gcsi <- fread(paste0(path, "find_circ/fcrc_gcsi_counts.tsv"), data.table = F)
-fcrc_gdsc <- fread(paste0(path, "find_circ/fcrc_gdsc_counts.tsv"), data.table = F)
-fcrc_ccle <- fread(paste0(path, "find_circ/fcrc_ccle_counts.tsv"), data.table = F)
-
-
-############################################################
-# Format circRNA dataframes
-############################################################
-
-print("Formating dataframes")
-
-# function to return 
-format_df <- function(circ_counts) {
-    rownames(circ_counts) <- circ_counts$sample
-    circ_counts$sample <- NULL
-    circ_counts[is.na(circ_counts)] <- 0  
-
-    return(circ_counts)
-}
-
-ciri_gcsi <- format_df(ciri_gcsi)
-ciri_gdsc <- format_df(ciri_gdsc)
-ciri_ccle <- format_df(ciri_ccle)
-
-circ_gcsi <- format_df(circ_gcsi)
-circ_gdsc <- format_df(circ_gdsc)
-circ_ccle <- format_df(circ_ccle)
-
-cfnd_gcsi <- format_df(cfnd_gcsi)
-cfnd_gdsc <- format_df(cfnd_gdsc)
-cfnd_ccle <- format_df(cfnd_ccle)
-
-fcrc_gcsi <- format_df(fcrc_gcsi)
-fcrc_gdsc <- format_df(fcrc_gdsc)
-fcrc_ccle <- format_df(fcrc_ccle)
-
-
-############################################################
-# Filter low expressed transcripts
-############################################################
-
-print("Filtering low expressed transcripts")
-
-# function to count and remove low expressed transcripts
-filter_transcripts <- function(df) {
+    # count and remove low expressed transcripts
     counts <- colSums(df != 0)
-
-    to_print <- data.frame(Category = c("Total Transcripts", ">5 CCLs", ">10 CCLs", ">15 CCLs"),
-                           Number = c(length(counts), length(counts[counts > 5]), length(counts[counts > 10]), length(counts[counts > 15])))
-    print(to_print)
-
     to_keep <- names(counts[counts > 5])
     df <- df[,which(colnames(df) %in% to_keep)]
     return(df)
 }
 
-ciri_gcsi <- filter_transcripts(ciri_gcsi)
-ciri_gdsc <- filter_transcripts(ciri_gdsc)
-ciri_ccle <- filter_transcripts(ciri_ccle)
+print("Reading in dataframes")
 
-circ_gcsi <- filter_transcripts(circ_gcsi)
-circ_gdsc <- filter_transcripts(circ_gdsc)
-circ_ccle <- filter_transcripts(circ_ccle)
+# load circRNA expression data
+ciri_gcsi <- load_counts(path, "CIRI2/ciri_gcsi_counts.tsv")
+ciri_gdsc <- load_counts(path, "CIRI2/ciri_gdsc_counts.tsv")
+ciri_ccle <- load_counts(path, "CIRI2/ciri_ccle_counts.tsv")
 
-cfnd_gcsi <- filter_transcripts(cfnd_gcsi)
-cfnd_gdsc <- filter_transcripts(cfnd_gdsc)
-cfnd_ccle <- filter_transcripts(cfnd_ccle)
+circ_gcsi <- load_counts(path, "CIRCexplorer2/circ_gcsi_counts.tsv")
+circ_gdsc <- load_counts(path, "CIRCexplorer2/circ_gdsc_counts.tsv")
+circ_ccle <- load_counts(path, "CIRCexplorer2/circ_ccle_counts.tsv")
 
-fcrc_gcsi <- filter_transcripts(fcrc_gcsi)
-fcrc_gdsc <- filter_transcripts(fcrc_gdsc)
-fcrc_ccle <- filter_transcripts(fcrc_ccle)
+cfnd_gcsi <- load_counts(path, "circRNA_finder/cfnd_gcsi_counts.tsv")
+cfnd_gdsc <- load_counts(path, "circRNA_finder/cfnd_gdsc_counts.tsv")
+cfnd_ccle <- load_counts(path, "circRNA_finder/cfnd_ccle_counts.tsv")
+
+fcrc_gcsi <- load_counts(path, "find_circ/fcrc_gcsi_counts.tsv")
+fcrc_gdsc <- load_counts(path, "find_circ/fcrc_gdsc_counts.tsv")
+fcrc_ccle <- load_counts(path, "find_circ/fcrc_ccle_counts.tsv")
+
 
 ############################################################
 # Plot distribution of circRNA expression per pipeline
@@ -122,7 +52,7 @@ fcrc_ccle <- filter_transcripts(fcrc_ccle)
 
 print("Plotting expression distribution")
 
-# function to vectorize each dataframe
+# helper function to vectorize each dataframe
 vectorize <- function(df, pset, pipeline) {
     values <- as.vector(df[df != 0])
     df <- data.frame(Exp = values, 
@@ -131,26 +61,28 @@ vectorize <- function(df, pset, pipeline) {
     return(df)
 }
 
-toPlot <- rbind(vectorize(ciri_gcsi, "gCSI", "CIRI2"),
-                vectorize(ciri_gdsc, "GDSC2", "CIRI2"),
-                vectorize(ciri_ccle, "CCLE", "CIRI2"),
-                vectorize(circ_gcsi, "gCSI", "CIRCexplorer2"),
-                vectorize(circ_gdsc, "GDSC2", "CIRCexplorer2"),
-                vectorize(circ_ccle, "CCLE", "CIRCexplorer2"),
-                vectorize(cfnd_gcsi, "gCSI", "circRNA_finder"),
-                vectorize(cfnd_gdsc, "GDSC2", "circRNA_finder"),
-                vectorize(cfnd_ccle, "CCLE", "circRNA_finder"),
-                vectorize(fcrc_gcsi, "gCSI", "find_circ"),
-                vectorize(fcrc_gdsc, "GDSC2", "find_circ"),
-                vectorize(fcrc_ccle, "CCLE", "find_circ"))
+toPlot <- rbind(
+    vectorize(ciri_gcsi, "gCSI", "CIRI2"),
+    vectorize(ciri_gdsc, "GDSC2", "CIRI2"),
+    vectorize(ciri_ccle, "CCLE", "CIRI2"),
+    vectorize(circ_gcsi, "gCSI", "CIRCexplorer2"),
+    vectorize(circ_gdsc, "GDSC2", "CIRCexplorer2"),
+    vectorize(circ_ccle, "CCLE", "CIRCexplorer2"),
+    vectorize(cfnd_gcsi, "gCSI", "circRNA_finder"),
+    vectorize(cfnd_gdsc, "GDSC2", "circRNA_finder"),
+    vectorize(cfnd_ccle, "CCLE", "circRNA_finder"),
+    vectorize(fcrc_gcsi, "gCSI", "find_circ"),
+    vectorize(fcrc_gdsc, "GDSC2", "find_circ"),
+    vectorize(fcrc_ccle, "CCLE", "find_circ")
+)
 
-png("../results/figures/figure6/exp_distribution.png", width=150, height=75, units='mm', res = 600, pointsize=80)
+png("../results/figures/misc/exp_distribution.png", width=150, height=75, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = PSet, y = Exp, fill = Pipeline)) + 
     geom_violin(trim = FALSE, scale = "width", adjust = 1.0) +
     theme_classic() + theme(legend.key.size = unit(0.5, 'cm'))
 dev.off()
 
-png("../results/figures/figure6/exp_distribution_log10.png", width=150, height=75, units='mm', res = 600, pointsize=80)
+png("../results/figures/misc/exp_distribution_log10.png", width=150, height=75, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = PSet, y = Exp, fill = Pipeline)) + 
     geom_violin(trim = FALSE, scale = "width", adjust = 1.0) +
     scale_y_log10() +
@@ -164,7 +96,7 @@ dev.off()
 
 print("Robust normalization")
 
-# function to count and remove low expressed transcripts
+# helper function to count and remove low expressed transcripts
 robust_norm <- function(df) {
     for (circ in colnames(df)) {
         exp <- df[[circ]]
@@ -184,7 +116,6 @@ robust_norm <- function(df) {
     }
     return(df)
 }
-
 
 ciri_gcsi <- robust_norm(ciri_gcsi)
 ciri_gdsc <- robust_norm(ciri_gdsc)
@@ -210,26 +141,28 @@ fcrc_ccle <- robust_norm(fcrc_ccle)
 print("Plotting expression distribution")
 
 # function to vectorize each dataframe
-toPlot <- rbind(vectorize(ciri_gcsi, "gCSI", "CIRI2"),
-                vectorize(ciri_gdsc, "GDSC2", "CIRI2"),
-                vectorize(ciri_ccle, "CCLE", "CIRI2"),
-                vectorize(circ_gcsi, "gCSI", "CIRCexplorer2"),
-                vectorize(circ_gdsc, "GDSC2", "CIRCexplorer2"),
-                vectorize(circ_ccle, "CCLE", "CIRCexplorer2"),
-                vectorize(cfnd_gcsi, "gCSI", "circRNA_finder"),
-                vectorize(cfnd_gdsc, "GDSC2", "circRNA_finder"),
-                vectorize(cfnd_ccle, "CCLE", "circRNA_finder"),
-                vectorize(fcrc_gcsi, "gCSI", "find_circ"),
-                vectorize(fcrc_gdsc, "GDSC2", "find_circ"),
-                vectorize(fcrc_ccle, "CCLE", "find_circ"))
+toPlot <- rbind(
+    vectorize(ciri_gcsi, "gCSI", "CIRI2"),
+    vectorize(ciri_gdsc, "GDSC2", "CIRI2"),
+    vectorize(ciri_ccle, "CCLE", "CIRI2"),
+    vectorize(circ_gcsi, "gCSI", "CIRCexplorer2"),
+    vectorize(circ_gdsc, "GDSC2", "CIRCexplorer2"),
+    vectorize(circ_ccle, "CCLE", "CIRCexplorer2"),
+    vectorize(cfnd_gcsi, "gCSI", "circRNA_finder"),
+    vectorize(cfnd_gdsc, "GDSC2", "circRNA_finder"),
+    vectorize(cfnd_ccle, "CCLE", "circRNA_finder"),
+    vectorize(fcrc_gcsi, "gCSI", "find_circ"),
+    vectorize(fcrc_gdsc, "GDSC2", "find_circ"),
+    vectorize(fcrc_ccle, "CCLE", "find_circ")
+)
 
-png("../results/figures/figure6/exp_distribution_afternorm.png", width=150, height=75, units='mm', res = 600, pointsize=80)
+png("../results/figures/misc/exp_distribution_afternorm.png", width=150, height=75, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = PSet, y = Exp, fill = Pipeline)) + 
     geom_violin(trim = FALSE, scale = "width", adjust = 1.0) +
     theme_classic() + theme(legend.key.size = unit(0.5, 'cm'))
 dev.off()
 
-png("../results/figures/figure6/exp_distribution_log10_afternorm.png", width=150, height=75, units='mm', res = 600, pointsize=80)
+png("../results/figures/misc/exp_distribution_log10_afternorm.png", width=150, height=75, units='mm', res = 600, pointsize=80)
 ggplot(toPlot, aes(x = PSet, y = Exp, fill = Pipeline)) + 
     geom_violin(trim = FALSE, scale = "width", adjust = 1.0) +
     scale_y_log10() +
@@ -244,7 +177,7 @@ dev.off()
 print("Combining pipelines")
 
 # function to combine exp counts for each sample across pipelines
-combine_pipelines <- function(ciri_df, circ_df, cfnd_df, fcrc_df) {
+combine_pipelines <- function(ciri_df, circ_df, cfnd_df, fcrc_df, pset) {
 
     samples <- rownames(ciri_df)
 
@@ -292,23 +225,21 @@ combine_pipelines <- function(ciri_df, circ_df, cfnd_df, fcrc_df) {
 
     # bind
     pset_df <- rbindlist(list_res_dt, fill = TRUE) |> as.data.frame()
-    pset_df[is.na(pset_df)] <- 0 
+    pset_df[is.na(pset_df)] <- 0
     rownames(pset_df) <- samples
 
-    return(pset_df)
+    # write dataframe
+    outfile <- paste0("../data/processed_cellline/merged_all_samples/", pset, "_counts.tsv")
+    write.table(
+        pset_df, 
+        file = outfiles, 
+        quote = FALSE, 
+        sep = "\t", 
+        col.names = TRUE, 
+        row.names = TRUE
+    )
 }
 
-gcsi_df <- combine_pipelines(ciri_gcsi, circ_gcsi, cfnd_gcsi, fcrc_gcsi)
-ccle_df <- combine_pipelines(ciri_ccle, circ_ccle, cfnd_ccle, fcrc_ccle)
-gdsc_df <- combine_pipelines(ciri_gdsc, circ_gdsc, cfnd_gdsc, fcrc_gdsc)
-
-
-############################################################
-# Save dataframes
-############################################################
-
-print("Saving dataframes")
-
-write.table(gcsi_df, file = paste0(df, "gcsi_counts.tsv"), quote = F, sep = "\t", col.names = T, row.names = T)
-write.table(ccle_df, file = paste0(df, "ccle_counts.tsv"), quote = F, sep = "\t", col.names = T, row.names = T)
-write.table(gdsc_df, file = paste0(df, "gdsc_counts.tsv"), quote = F, sep = "\t", col.names = T, row.names = T)
+gcsi_df <- combine_pipelines(ciri_gcsi, circ_gcsi, cfnd_gcsi, fcrc_gcsi, "gcsi")
+ccle_df <- combine_pipelines(ciri_ccle, circ_ccle, cfnd_ccle, fcrc_ccle, "ccle")
+gdsc_df <- combine_pipelines(ciri_gdsc, circ_gdsc, cfnd_gdsc, fcrc_gdsc, "gdsc")

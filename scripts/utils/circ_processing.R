@@ -1,7 +1,15 @@
-# ========== Determine biological replicates across datasets ========== #
-
-# read in common cells
-cell_all <- read.csv(file = "../data/rnaseq_meta/cell_annotation_all.csv", na.strings=c("", " ", "NA"))
+#' Helper function to match cell.id to unique.cellid from PharmacoGx
+#' 
+matchToIDTable <- function(ids, tbl, column, returnColumn = "unique.cellid") {
+  sapply(ids, function(x) {
+    myx <- grep(paste0("((///)|^)",Hmisc::escapeRegex(x),"((///)|$)"), tbl[,column])
+    if(length(myx) > 1){
+      stop("Something went wrong in curating ids, we have multiple matches")
+    }
+    if(length(myx) == 0){return(NA_character_)}
+    return(tbl[myx, returnColumn])
+  })
+}
 
 #' Function to read in pset cell annotation
 #' 
@@ -9,69 +17,48 @@ cell_all <- read.csv(file = "../data/rnaseq_meta/cell_annotation_all.csv", na.st
 #' @param pset str. One of: 'gcsi', 'ccle', or 'gdsc'
 #' 
 load_anno <- function(filepath, pset) {
+
+  # read in cell annotation
+  cell_all <- read.csv(file = "../data/rnaseq_meta/cell_annotation_all.csv", na.strings=c("", " ", "NA"))
+  name <- switch(pset, gcsi = "alias", ccle = "Run", gdsc = "file_name")
   
   anno <- read.csv(filepath)
-  
+  if (pset %in% c("gcsi", "ccle")) {
+    cell <- switch(pset, gcsi = "Cell_line", ccle = "Cell_Line")
+    col <- switch(pset, gcsi = "GNE.cellid", ccle = "CCLE.cellid")
+    anno <- anno[,colnames(anno) %in% c("cellid", name, "Cell_Line", "Cell_line")]
+    anno$cellid <- matchToIDTable(ids=anno[[cell]], tbl = cell_all, column = col, returnColumn = "unique.cellid")
+  } else {
+    anno$file_name <- gsub("\\..*", "", anno$file_name)
+    mapping <- read.csv("../data/rnaseq_meta/gdsc/samples.csv")
+    anno$sample_alias <- mapping$subject_id[match(anno$sample_alias, mapping$alias)]
+    anno$cellid <- matchToIDTable(ids = anno$sample_alias, tbl = cell_all, column = "GDSC_rnaseq.cellid", returnColumn = "unique.cellid")
+    anno[is.na(anno$cellid),]$cellid <- matchToIDTable(ids = anno[is.na(anno$cellid),]$sample_alias, tbl = cell_all, column = "GDSC1000.cellid", returnColumn = "unique.cellid")
+    # manual mapping for gdsc
+    anno[anno$sample_alias == "NCI-H820",]$cellid <- "NCI-H820"
+    anno[anno$sample_alias == "PC-3-JPC-3",]$cellid <- "PC-3 [Human lung carcinoma]"
+    anno[anno$sample_alias == "Geo",]$cellid <- "GEO"
+    anno[anno$sample_alias == "NTERA-2cl.D1",]$cellid <- "NTERA-2"
+    anno[anno$sample_alias == "Geo",]$sample_alias <- "GEO"
+    anno[anno$sample_alias == "NB(TU)1-10",]$sample_alias <- "NB-TU-1-10"
+    anno[anno$sample_alias == "NTERA-2cl.D1",]$sample_alias <- "NTERA-2cl-D1"
+    anno[anno$sample_alias == "UWB1.289",]$sample_alias <- "UWB1-289"
+  }
+  rownames(anno) <- anno[[name]]
 
+  # match sample to tissue metadata
+  tissue_meta <- fread(paste0("../data/rnaseq_meta/tissue_meta/", pset, "_metadata.tsv"))
+
+  if (pset == "gcsi") {
+    anno$tissue <- tissue_meta$Tissue_supergroup[match(anno$Cell_line, tissue_meta$Cell_line)]
+  } else if (pset == "ccle") {
+    anno$tissue <- str_to_title(gsub("_", " ", tissue_meta$tissue[match(anno$Cell_Line, tissue_meta$Cell_Line)]))
+  } else {
+    anno$tissue <- str_to_title(tissue_meta$Factor.Value.organism.part.[match(anno$sample_alias, tissue_meta$Source.Name)])
+  }
+  return(anno)
 }
 
-#read in gcsi cell annotations
-gcsi <- read.csv(file = "../data/rnaseq_meta/gcsi_rnaseq_meta.csv")
-gcsi <- gcsi[,colnames(gcsi) %in% c("cellid", "alias", "Cell_line")]
-gcsi$cellid <- matchToIDTable(ids=gcsi$Cell_line , tbl = cell_all, column = "GNE.cellid", returnColumn = "unique.cellid")
-rownames(gcsi) <- gcsi$alias
-
-#read in ccle cell annotations
-ccle <- read.csv(file = "../data/rnaseq_meta/ccle_rnaseq_meta.csv")
-ccle <- ccle[,colnames(ccle) %in% c("cellid", "Run", "Cell_Line")]
-ccle$cellid <- matchToIDTable(ids=ccle$Cell_Line , tbl = cell_all, column = "CCLE.cellid", returnColumn = "unique.cellid")
-rownames(ccle) <- ccle$Run
-
-#read in gdsc cell annotations
-gdsc <- read.csv("../data/rnaseq_meta/gdsc/sample_file.csv")
-gdsc_mapping <- read.csv("../data/rnaseq_meta/gdsc/samples.csv")
-gdsc$file_name <- gsub("\\..*", "", gdsc$file_name)
-gdsc <- gdsc[gdsc$file_name %in% ciri_gdsc$V1,]
-gdsc$sample_alias <- gdsc_mapping$subject_id[match(gdsc$sample_alias, gdsc_mapping$alias)]
-
-# match gdsc annotations
-gdsc$cellid <- matchToIDTable(ids = gdsc$sample_alias, tbl = cell_all, column = "GDSC_rnaseq.cellid", returnColumn = "unique.cellid")
-gdsc[is.na(gdsc$cellid),]$cellid <- matchToIDTable(ids = gdsc[is.na(gdsc$cellid),]$sample_alias, tbl = cell_all, column = "GDSC1000.cellid", returnColumn = "unique.cellid")
-gdsc[gdsc$sample_alias == "NCI-H820",]$cellid = "NCI-H820"
-gdsc[gdsc$sample_alias == "PC-3-JPC-3",]$cellid = "PC-3 [Human lung carcinoma]"
-gdsc[gdsc$sample_alias == "Geo",]$cellid = "GEO"
-gdsc[gdsc$sample_alias == "NTERA-2cl.D1",]$cellid = "NTERA-2"
-gdsc[gdsc$sample_alias == "Geo",]$sample_alias = "GEO"
-gdsc[gdsc$sample_alias == "NB(TU)1-10",]$sample_alias = "NB-TU-1-10"
-gdsc[gdsc$sample_alias == "NTERA-2cl.D1",]$sample_alias = "NTERA-2cl-D1"
-gdsc[gdsc$sample_alias == "UWB1.289",]$sample_alias = "UWB1-289"
-rownames(gdsc) <- gdsc$file_name
-
-# match sample to tissue metadata
-gcsi$tissue <- gcsi_tmeta$Tissue_supergroup[match(gcsi$Cell_line, gcsi_tmeta$Cell_line)]
-ccle$tissue <- str_to_title(gsub("_", " ", ccle_tmeta$tissue[match(ccle$Cell_Line, ccle_tmeta$Cell_Line)]))
-gdsc$tissue <- str_to_title(gdsc_tmeta$Factor.Value.organism.part.[match(gdsc$sample_alias, gdsc_tmeta$Source.Name)])
-
-# save metadata file
-save(gcsi, ccle, gdsc, file = "../results/data/tissue-metadata.RData")
-
-# rename rownames of gcsi dataframes
-ciri_gcsi$V1 <- gcsi$cellid[match(gsub("gcsi", "", ciri_gcsi$V1), rownames(gcsi))]
-circ_gcsi$V1 <- gcsi$cellid[match(gsub("gcsi", "", circ_gcsi$V1), rownames(gcsi))]
-cfnd_gcsi$V1 <- gcsi$cellid[match(gsub("gcsi", "", cfnd_gcsi$V1), rownames(gcsi))]
-fcrc_gcsi$V1 <- gcsi$cellid[match(gsub("gcsi", "", fcrc_gcsi$V1), rownames(gcsi))]
-
-# rename rownames of ccle dataframes
-ciri_ccle$V1 <- ccle$cellid[match(ciri_ccle$V1, rownames(ccle))]
-circ_ccle$V1 <- ccle$cellid[match(circ_ccle$V1, rownames(ccle))]
-cfnd_ccle$V1 <- ccle$cellid[match(cfnd_ccle$V1, rownames(ccle))]
-fcrc_ccle$V1 <- ccle$cellid[match(fcrc_ccle$V1, rownames(ccle))]
-
-# rename rownames of gdsc dataframes
-ciri_gdsc$V1 <- gdsc$cellid[match(ciri_gdsc$V1, rownames(gdsc))]
-circ_gdsc$V1 <- gdsc$cellid[match(circ_gdsc$V1, rownames(gdsc))]
-cfnd_gdsc$V1 <- gdsc$cellid[match(cfnd_gdsc$V1, rownames(gdsc))]
-fcrc_gdsc$V1 <- gdsc$cellid[match(fcrc_gdsc$V1, rownames(gdsc))]
 
 #' CPM normalization
 #' 
@@ -128,4 +115,24 @@ avg_reps <- function(df) {
     }
   }
    return(df)
+}
+
+#' Filter transcripts with 0 expression across intersected cell lines
+#' Used after subsetting to 48 common cell lines
+#' 
+filter_transcripts <- function(df) {
+
+  # save cell line labels
+  sample <- df$sample
+
+  # remove cell line labels
+  df$sample <- NULL
+
+  # filter transcripts with 0 expression
+  df_sub <- df[,-which(colnames(df) %in% names(which(colSums(df) == 0)))]
+
+  # re-add cell line labels
+  df <- cbind(sample, df_sub)
+
+  return(df)
 }
