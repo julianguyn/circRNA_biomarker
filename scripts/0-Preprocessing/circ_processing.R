@@ -31,15 +31,15 @@ if (is.na(analysis) || !analysis %in% valid) {
 # Load in cell line metadata
 ############################################################
 
-#gcsi <- readRDS("gCSI.rds") |> updateObject()
+#gcsi <- readRDS("../data/PSets/gCSI.rds") |> updateObject()
 #gcsi_metadata <- gcsi@molecularProfiles$Kallisto_0.46.1.rnaseq@colData 
 #write.table(gcsi_metadata, file = "../data/rnaseq_meta/tissue_meta/gcsi_metadata.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
 
-#gdsc <- readRDS("GDSC2-8.2.rds") |> updateObject()
+#gdsc <- readRDS("../data/PSets/GDSC2-8.2.rds") |> updateObject()
 #gdsc_metadata <- gdsc@molecularProfiles$Kallisto_0.46.1.rnaseq@colData
 #write.table(gdsc_metadata, file = "../data/rnaseq_meta/tissue_meta/gdsc_metadata.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
 
-#ccle <- readRDS("CCLE.rds") |> updateObject()
+#ccle <- readRDS("../data/PSets/CCLE.rds") |> updateObject()
 #ccle_metadata <- ccle@molecularProfiles$Kallisto_0.46.1.rnaseq@colData
 #write.table(ccle_metadata, file = "../data/rnaseq_meta/tissue_meta/ccle_metadata.tsv", quote = F, sep = "\t", col.names = T, row.names = F)
 
