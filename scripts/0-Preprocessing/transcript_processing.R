@@ -88,8 +88,30 @@ expr_gdsc_i <- expr_gdsc_i[which(!transcripts_noid %in%  housekeeping$Ensembl),]
 
 
 ############################################################
+# Format for stability index calculations
+############################################################
+
+expr_gcsi_i <- t(expr_gcsi_i) |> as.data.frame()
+expr_ccle_i <- t(expr_ccle_i) |> as.data.frame()
+expr_gdsc_i <- t(expr_gdsc_i) |> as.data.frame()
+
+expr_gcsi_p <- t(expr_gcsi_p) |> as.data.frame()
+expr_ccle_p <- t(expr_ccle_p) |> as.data.frame()
+expr_gdsc_p <- t(expr_gdsc_p) |> as.data.frame()
+
+############################################################
 # Save matrices
 ############################################################
 
-save(expr_gcsi_i, expr_ccle_i, expr_gdsc_i, file = "../results/isoform_expression.RData")
-save(expr_gcsi_p, expr_ccle_p, expr_gdsc_p, file = "../results/gene_expression.RData")
+save(expr_gcsi_i, expr_ccle_i, expr_gdsc_i, file = "../results/data/isoform_expression.RData")
+save(expr_gcsi_p, expr_ccle_p, expr_gdsc_p, file = "../results/data/gene_expression.RData")
+
+
+############################################################
+# Save metadata (for feature influence)
+############################################################
+
+isoform_meta <- gcsi_rna@elementMetadata
+gene_meta <- gcsi_gene@elementMetadata
+
+save(isoform_meta, gene_meta, file = "../data/rnaseq_meta/transcript_meta.RData")

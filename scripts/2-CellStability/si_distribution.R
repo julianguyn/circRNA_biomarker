@@ -20,7 +20,7 @@ source("utils/compute_stability_index.R")
 args <- commandArgs(trailingOnly = TRUE)
 analysis <- args[1]
 
-valid <- c("circ", "GE")
+valid <- c("circ", "circ_fi", "GE")
 if (is.na(analysis) || !analysis %in% valid) {
   stop(
     sprintf("Invalid analysis argument '%s'. Must be one of: %s",
@@ -45,6 +45,7 @@ load_counts <- function(path, filename) {
 path <- switch(
     analysis,
     circ = "../data/processed_cellline/common_samples/",
+    circ_fi = "../data/processed_cellline/common_samples/",
     GE = "../data/processed_cellline/GE_common_samples/"
 )
 
@@ -69,23 +70,32 @@ fcrc_ccle <- load_counts(path, "find_circ/fcrc_ccle_counts.tsv")
 # Get common transcripts
 ############################################################
 
-# get common circRNA transcripts found in all psets for each pipeline
-ciri_common <- intersect(intersect(colnames(ciri_gcsi), colnames(ciri_ccle)), colnames(ciri_gdsc))
-circ_common <- intersect(intersect(colnames(circ_gcsi), colnames(circ_ccle)), colnames(circ_gdsc))
-cfnd_common <- intersect(intersect(colnames(cfnd_gcsi), colnames(cfnd_ccle)), colnames(cfnd_gdsc))
-fcrc_common <- intersect(intersect(colnames(fcrc_gcsi), colnames(fcrc_ccle)), colnames(fcrc_gdsc))
-
-print(length(ciri_common)) #31, 50
-print(length(circ_common)) #67, 122
-print(length(cfnd_common)) #85, 269
-print(length(fcrc_common)) #504, 176
+if (analysis == "circ_fi") {
+    # helper function to keep only transcripts in 2/3 of the psets
+    get_common <- function(gcsi, ccle, gdsc) {
+        all_transcripts <- c(colnames(gcsi), colnames(ccle), colnames(gdsc))
+        freq <- table(all_transcripts)
+        to_keep <- names(freq[freq >= 2])
+        return(to_keep)
+    }
+    # get common circRNA transcripts found in all psets for each pipeline
+    ciri_common <- get_common(ciri_gcsi, ciri_ccle, ciri_gdsc)
+    circ_common <- get_common(circ_gcsi, circ_ccle, circ_gdsc)
+    cfnd_common <- get_common(cfnd_gcsi, cfnd_ccle, cfnd_gdsc)
+    fcrc_common <- get_common(fcrc_gcsi, fcrc_ccle, fcrc_gdsc)
+} else {
+    # keep transcripts found in all psets for each pipeline
+    ciri_common <- intersect(intersect(colnames(ciri_gcsi), colnames(ciri_ccle)), colnames(ciri_gdsc))
+    circ_common <- intersect(intersect(colnames(circ_gcsi), colnames(circ_ccle)), colnames(circ_gdsc))
+    cfnd_common <- intersect(intersect(colnames(cfnd_gcsi), colnames(cfnd_ccle)), colnames(cfnd_gdsc))
+    fcrc_common <- intersect(intersect(colnames(fcrc_gcsi), colnames(fcrc_ccle)), colnames(fcrc_gdsc))
+}
 
 ############################################################
 # Keep only common transcripts across all PSets
 ############################################################
 
-#' Helper function to order circRNA dataframes and keep
-#' only transcripts found in all psets for each pipeline
+#' Helper function to order circRNA dataframes and keep common transccripts
 subset_df <- function(df, common_transcripts) {
     df <- df[,which(colnames(df) %in% common_transcripts)]
     df <- df[order(df$sample),order(colnames(df))]
@@ -110,10 +120,12 @@ fcrc_gcsi <- subset_df(fcrc_gcsi, fcrc_common)
 fcrc_ccle <- subset_df(fcrc_ccle, fcrc_common)
 fcrc_gdsc <- subset_df(fcrc_gdsc, fcrc_common)
 
-# save subsetted dataframes for feature importance (circ only)
-#save(ciri_gcsi, ciri_ccle, ciri_gdsc, circ_gcsi, circ_ccle, circ_gdsc,
-#     cfnd_gcsi, cfnd_ccle, cfnd_gdsc, fcrc_gcsi, fcrc_ccle, fcrc_gdsc,
-#     file = "../results/data/temp/circ_stability_subsetdf.RData")
+# save subsetted dataframes for get_features.R (feature importance)
+if (analysis == "circ_fi") {
+save(ciri_gcsi, ciri_ccle, ciri_gdsc, circ_gcsi, circ_ccle, circ_gdsc,
+     cfnd_gcsi, cfnd_ccle, cfnd_gdsc, fcrc_gcsi, fcrc_ccle, fcrc_gdsc,
+     file = "../results/data/temp/circ_stability_subsetdf2.RData")
+}
 
 ############################################################
 # Compute pairwise spearman correlations
@@ -121,34 +133,34 @@ fcrc_gdsc <- subset_df(fcrc_gdsc, fcrc_common)
 
 print("Starting CIRI2 stability indices")
 ciri_stability <- rbind(
-    compute_stability_index(ciri_gcsi, ciri_ccle, "gcsi", "ccle", "ciri"),
-    compute_stability_index(ciri_gcsi, ciri_gdsc, "gcsi", "gdsc", "ciri"),
-    compute_stability_index(ciri_gdsc, ciri_ccle, "gdsc", "ccle", "ciri")
+    compute_stability_index(ciri_gcsi, ciri_ccle, "gCSI", "CCLE", "CIRI2"),
+    compute_stability_index(ciri_gcsi, ciri_gdsc, "gCSI", "GDSC2", "CIRI2"),
+    compute_stability_index(ciri_gdsc, ciri_ccle, "GDSC2", "CCLE", "CIRI2")
 )
 
 print("Starting CIRCexplorer2 stability indices")
 circ_stability <- rbind(
-    compute_stability_index(circ_gcsi, circ_ccle, "gcsi", "ccle", "circ"),
-    compute_stability_index(circ_gcsi, circ_gdsc, "gcsi", "gdsc", "circ"),
-    compute_stability_index(circ_gdsc, circ_ccle, "gdsc", "ccle", "circ")
+    compute_stability_index(circ_gcsi, circ_ccle, "gCSI", "CCLE", "CIRCexplorer2"),
+    compute_stability_index(circ_gcsi, circ_gdsc, "gCSI", "GDSC2", "CIRCexplorer2"),
+    compute_stability_index(circ_gdsc, circ_ccle, "GDSC2", "CCLE", "CIRCexplorer2")
 )
 
 print("Starting circRNA_finder stability indices")
 cfnd_stability <- rbind(
-    compute_stability_index(cfnd_gcsi, cfnd_ccle, "gcsi", "ccle", "cfnd"),
-    compute_stability_index(cfnd_gcsi, cfnd_gdsc, "gcsi", "gdsc", "cfnd"),
-    compute_stability_index(cfnd_gdsc, cfnd_ccle, "gdsc", "ccle", "cfnd")
+    compute_stability_index(cfnd_gcsi, cfnd_ccle, "gCSI", "CCLE", "circRNA_finder"),
+    compute_stability_index(cfnd_gcsi, cfnd_gdsc, "gCSI", "GDSC2", "circRNA_finder"),
+    compute_stability_index(cfnd_gdsc, cfnd_ccle, "GDSC2", "CCLE", "circRNA_finder")
 )
 
 print("Starting find_circ stability indices")
 fcrc_stability <- rbind(
-    compute_stability_index(fcrc_gcsi, fcrc_ccle, "gcsi", "ccle", "fcrc"),
-    compute_stability_index(fcrc_gcsi, fcrc_gdsc, "gcsi", "gdsc", "fcrc"),
-    compute_stability_index(fcrc_gdsc, fcrc_ccle, "gdsc", "ccle", "fcrc")
+    compute_stability_index(fcrc_gcsi, fcrc_ccle, "gCSI", "CCLE", "find_circ"),
+    compute_stability_index(fcrc_gcsi, fcrc_gdsc, "gCSI", "GDSC2", "find_circ"),
+    compute_stability_index(fcrc_gdsc, fcrc_ccle, "GDSC2", "CCLE", "find_circ")
 )
 
-save(ciri_stability, circ_stability, cfnd_stability, fcrc_stability, 
-     file = "../results/data/temp/circ_stability.RData")
+save(ciri_stability, circ_stability, cfnd_stability, fcrc_stability,
+     file = paste0("../results/data/stability/", analysis, "_stability.RData"))
 
 ############################################################
 # Compute pairwise spearman correlations with randomization
@@ -156,42 +168,42 @@ save(ciri_stability, circ_stability, cfnd_stability, fcrc_stability,
 
 print("Starting CIRI2 random stability indices")
 ciri_stability_random <- rbind(
-    compute_stability_index(ciri_gcsi, ciri_ccle, "gcsi", "ccle", "ciri", random = TRUE, iter = 100),
-    compute_stability_index(ciri_gcsi, ciri_gdsc, "gcsi", "gdsc", "ciri", random = TRUE, iter = 100),
-    compute_stability_index(ciri_gdsc, ciri_ccle, "gdsc", "ccle", "ciri", random = TRUE, iter = 100)
+    compute_stability_index(ciri_gcsi, ciri_ccle, "gCSI", "CCLE", "CIRI2", random = TRUE, iter = 100),
+    compute_stability_index(ciri_gcsi, ciri_gdsc, "gCSI", "GDSC2", "CIRI2", random = TRUE, iter = 100),
+    compute_stability_index(ciri_gdsc, ciri_ccle, "GDSC2", "CCLE", "CIRI2", random = TRUE, iter = 100)
 )
 
 print("Starting CIRCexplorer2 random stability indices")
 circ_stability_random <- rbind(
-    compute_stability_index(circ_gcsi, circ_ccle, "gcsi", "ccle", "circ", random = TRUE, iter = 100),
-    compute_stability_index(circ_gcsi, circ_gdsc, "gcsi", "gdsc", "circ", random = TRUE, iter = 100),
-    compute_stability_index(circ_gdsc, circ_ccle, "gdsc", "ccle", "circ", random = TRUE, iter = 100)
+    compute_stability_index(circ_gcsi, circ_ccle, "gCSI", "CCLE", "CIRCexplorer2", random = TRUE, iter = 100),
+    compute_stability_index(circ_gcsi, circ_gdsc, "gCSI", "GDSC2", "CIRCexplorer2", random = TRUE, iter = 100),
+    compute_stability_index(circ_gdsc, circ_ccle, "GDSC2", "CCLE", "CIRCexplorer2", random = TRUE, iter = 100)
 )
 
 print("Starting circRNA_finder random stability indices")
 cfnd_stability_random <- rbind(
-    compute_stability_index(cfnd_gcsi, cfnd_ccle, "gcsi", "ccle", "cfnd", random = TRUE, iter = 100),
-    compute_stability_index(cfnd_gcsi, cfnd_gdsc, "gcsi", "gdsc", "cfnd", random = TRUE, iter = 100),
-    compute_stability_index(cfnd_gdsc, cfnd_ccle, "gdsc", "ccle", "cfnd", random = TRUE, iter = 100)
+    compute_stability_index(cfnd_gcsi, cfnd_ccle, "gCSI", "CCLE", "circRNA_finder", random = TRUE, iter = 100),
+    compute_stability_index(cfnd_gcsi, cfnd_gdsc, "gCSI", "GDSC2", "circRNA_finder", random = TRUE, iter = 100),
+    compute_stability_index(cfnd_gdsc, cfnd_ccle, "GDSC2", "CCLE", "circRNA_finder", random = TRUE, iter = 100)
 )
 
 print("Starting find_circ random stability indices")
 fcrc_stability_random <- rbind(
-    compute_stability_index(fcrc_gcsi, fcrc_ccle, "gcsi", "ccle", "fcrc", random = TRUE, iter = 100),
-    compute_stability_index(fcrc_gcsi, fcrc_gdsc, "gcsi", "gdsc", "fcrc", random = TRUE, iter = 100),
-    compute_stability_index(fcrc_gdsc, fcrc_ccle, "gdsc", "ccle", "fcrc", random = TRUE, iter = 100)
+    compute_stability_index(fcrc_gcsi, fcrc_ccle, "gCSI", "CCLE", "find_circ", random = TRUE, iter = 100),
+    compute_stability_index(fcrc_gcsi, fcrc_gdsc, "gCSI", "GDSC2", "find_circ", random = TRUE, iter = 100),
+    compute_stability_index(fcrc_gdsc, fcrc_ccle, "GDSC2", "CCLE", "find_circ", random = TRUE, iter = 100)
 )
 
 save(ciri_stability_random, circ_stability_random, cfnd_stability_random, fcrc_stability_random, 
-     file = "../results/data/temp/circ_stability_random.RData")
+     file = paste0("../results/data/stability/", analysis, "_stability_random.RData"))
 
 ############################################################
 # SI for isoform and gene expression data
 ############################################################
 
-# only do if analysis == "cells" (do once)
+# only do if analysis == "circ" (do once)
 
-if (analysis == "cells") {
+if (analysis == "circ") {
 
     # load in data
     load("../results/data/isoform_expression.RData")
@@ -199,163 +211,68 @@ if (analysis == "cells") {
 
     print("Starting gene expression stability indices")
     gene_stability <- rbind(
-        compute_stability_index(expr_gcsi_p, expr_ccle_p, "gcsi", "ccle", "ciri", random = TRUE, iter = 100),
-        compute_stability_index(expr_gcsi_p, expr_gdsc_p, "gcsi", "gdsc", "ciri", random = TRUE, iter = 100),
-        compute_stability_index(expr_gdsc_p, expr_ccle_p, "gdsc", "ccle", "ciri", random = TRUE, iter = 100)
+        compute_stability_index(expr_gcsi_p, expr_ccle_p, "gCSI", "CCLE", "Gene_Expression"),
+        compute_stability_index(expr_gcsi_p, expr_gdsc_p, "gCSI", "GDSC2", "Gene_Expression"),
+        compute_stability_index(expr_gdsc_p, expr_ccle_p, "GDSC2", "CCLE", "Gene_Expression")
     )
 
     print("Starting isoform exprssion stability indices")
     transcript_stability <- rbind(
-        compute_stability_index(expr_gcsi_i, expr_ccle_i, "gcsi", "ccle", "circ", random = TRUE, iter = 100),
-        compute_stability_index(expr_gcsi_i, expr_gdsc_i, "gcsi", "gdsc", "circ", random = TRUE, iter = 100),
-        compute_stability_index(expr_gdsc_i, expr_ccle_i, "gdsc", "ccle", "circ", random = TRUE, iter = 100)
+        compute_stability_index(expr_gcsi_i, expr_ccle_i, "gCSI", "CCLE", "Isoform_Expression"),
+        compute_stability_index(expr_gcsi_i, expr_gdsc_i, "gCSI", "GDSC2", "Isoform_Expression"),
+        compute_stability_index(expr_gdsc_i, expr_ccle_i, "GDSC2", "CCLE", "Isoform_Expression")
     )
 
     print("Starting gene expression random  stability indices")
     gene_stability_random <- rbind(
-        compute_stability_index(expr_gcsi_p, expr_ccle_p, "gcsi", "ccle", "cfnd", random = TRUE, iter = 100),
-        compute_stability_index(expr_gcsi_p, expr_gdsc_p, "gcsi", "gdsc", "cfnd", random = TRUE, iter = 100),
-        compute_stability_index(expr_gdsc_p, expr_ccle_p, "gdsc", "ccle", "cfnd", random = TRUE, iter = 100)
+        compute_stability_index(expr_gcsi_p, expr_ccle_p, "gCSI", "CCLE", "Gene_Expression", random = TRUE, iter = 100),
+        compute_stability_index(expr_gcsi_p, expr_gdsc_p, "gCSI", "GDSC2", "Gene_Expression", random = TRUE, iter = 100),
+        compute_stability_index(expr_gdsc_p, expr_ccle_p, "GDSC2", "CCLE", "Gene_Expression", random = TRUE, iter = 100)
     )
 
     print("Starting isoform expression random stability indices")
     transcript_stability_random <- rbind(
-        compute_stability_index(expr_gcsi_i, expr_ccle_i, "gcsi", "ccle", "fcrc", random = TRUE, iter = 100),
-        compute_stability_index(expr_gcsi_i, expr_gdsc_i, "gcsi", "gdsc", "fcrc", random = TRUE, iter = 100),
-        compute_stability_index(expr_gdsc_i, expr_ccle_i, "gdsc", "ccle", "fcrc", random = TRUE, iter = 100)
+        compute_stability_index(expr_gcsi_i, expr_ccle_i, "gCSI", "CCLE", "Isoform_Expression", random = TRUE, iter = 100),
+        compute_stability_index(expr_gcsi_i, expr_gdsc_i, "gCSI", "GDSC2", "Isoform_Expression", random = TRUE, iter = 100),
+        compute_stability_index(expr_gdsc_i, expr_ccle_i, "GDSC2", "CCLE", "Isoform_Expression", random = TRUE, iter = 100)
     )
 
-    save(gene_stability, transcript_stability, 
-     file = "../results/data/temp/gene_isoform_stability.RData")
+    save(gene_stability, transcript_stability,
+     file = "../results/data/stability/gene_isoform_stability.RData")
 
-    save(gene_stability_random, isof_stability_random, 
-     file = "../results/data/temp/gene_isoform_stability_random.RData")
+    save(gene_stability_random, transcript_stability_random,
+     file = "../results/data/stability/gene_isoform_stability_random.RData")
 
 } else if (analysis == "lungs") {
-    load("../results/data/temp/gene_isoform_stability.RData")
-    load("../results/data/temp/gene_isoform_stability_random.RData")
+    load("../results/data/stability/gene_isoform_stability.RData")
+    load("../results/data/stability/gene_isoform_stability_random.RData")
 }
-
-colnames(transcript_stability) <- c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")  
-colnames(gene_stability) <- c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")  
-
-
-############################################################
-# Compute median expression for isoform stability
-############################################################
-
-# format matrices
-gcsi_matrix <- as.matrix(expr_gcsi_i)                                 
-ccle_matrix <- as.matrix(expr_ccle_i)  
-gdsc_matrix <- as.matrix(expr_gdsc_i)
-
-# compute median
-gcsi_median <- as.numeric(rowMedians(gcsi_matrix))                                 
-ccle_median <- as.numeric(rowMedians(ccle_matrix))                                  
-gdsc_median <- as.numeric(rowMedians(gdsc_matrix))  
-
-# compile isoforms into one data frame                                 
-transcript_stability$transcript_id <- transcripts
-rownames(transcript_stability) <- transcript_stability$transcript_id
-transcript_stability$gcsi_median <- gcsi_median
-transcript_stability$ccle_median <- ccle_median
-transcript_stability$gdsc_median <- gdsc_median
-
-#remove transcripts that have median expression of 0 across all datasets
-transcript_stability <- transcript_stability[-which(transcript_stability$gcsi_median == 0 & transcript_stability$ccle_median == 0 & transcript_stability$gdsc_median == 0),]  
-   
-
-############################################################
-# Compute median expression for gene exp stability
-############################################################
-
-# format matrices
-gcsi_matrix <- as.matrix(expr_gcsi_p)                                 
-ccle_matrix <- as.matrix(expr_ccle_p)  
-gdsc_matrix <- as.matrix(expr_gdsc_p)
-
-# compute median      
-gcsi_median <- as.numeric(rowMedians(gcsi_matrix))                                 
-ccle_median <- as.numeric(rowMedians(ccle_matrix))                                  
-gdsc_median <- as.numeric(rowMedians(gdsc_matrix)) 
-        
-# compile gene expression into one data frame                                 
-gene_stability$gene_id <- genes
-rownames(gene_stability) <- gene_stability$gene_id
-gene_stability$gcsi_median <- gcsi_median
-gene_stability$ccle_median <- ccle_median
-gene_stability$gdsc_median <- gdsc_median
 
 ############################################################
 # Compute average spearman correlations (Table 2)
 ############################################################
 
-colMeans(gene_stability[,1:3])
-colMeans(transcript_stability[,1:3])
-colMeans(ciri_stability[,1:3])
-colMeans(circ_stability[,1:3])
-colMeans(cfnd_stability[,1:3])
-colMeans(fcrc_stability[,1:3])
-
-colMeans(gene_stability_random)
-colMeans(isof_stability_random)
-colMeans(ciri_stability_random)
-colMeans(circ_stability_random)
-colMeans(cfnd_stability_random)
-colMeans(fcrc_stability_random)
-
-############################################################
-# Compute t-test (non-random > random) (Table 2)
-############################################################
-
-ttest_si <- function(nonrandom, random) {
-    nonrandom <- nonrandom[,1:3]
-    nonrandom <- c(nonrandom[,1], nonrandom[,2], nonrandom[,3])
-    random <- c(random[,1], random[,2], random[,3])
-
-    t.test(nonrandom, random, alternative = "greater")
+# helper function to compute mean of given dataset pair
+get_mean <- function(stability_df) {
+    pairs <- unique(stability_df$label)
+    for (pair in pairs) {
+        m <- mean(stability_df$stability[stability_df$label == pair])
+        print(paste("Mean of", pair, ":", m))
+    }
 }
 
-ttest_si(gene_stability, gene_stability_random)
-ttest_si(transcript_stability, isof_stability_random)
-ttest_si(ciri_stability, ciri_stability_random)
-ttest_si(circ_stability, circ_stability_random)
-ttest_si(cfnd_stability, cfnd_stability_random)
-ttest_si(fcrc_stability, fcrc_stability_random)
-
 ############################################################
-# Format stability index matrices for plotting
+# Compute t-test (Table 2)
 ############################################################
 
-# function to format stability dataframes
-format_df <- function(df, label, random = "NonRandom") {
-    if (ncol(df) == 4) {df <- df[,c(1:3)]}
-    colnames(df) <- c("gCSI/CCLE", "gCSI/GDSC2", "GDSC2/CCLE")
-    toPlot <- melt(df)
-    colnames(toPlot) <- c("PSet", "Stability")
-    toPlot$label <- label
-    toPlot$random <- random
-    return(toPlot)
+#' Helper function to compute t-test
+#' 
+#' @param greater_df data.frame. The expected larger mean (e.g. non-random, gene expression)
+#' @param less_df data.frame. The expected smaller mean (e.g. random, circRNA)
+#' 
+ttest_si <- function(greater_df, less_df) {
+    t.test(greater_df$stability, less_df$stability, alternative = "greater")
 }
-
-ciri_stability <- format_df(ciri_stability, "CIRI2", "NonRandom")
-circ_stability <- format_df(circ_stability, "CIRCexplorer2", "NonRandom")
-cfnd_stability <- format_df(cfnd_stability, "circRNA_finder", "NonRandom")
-fcrc_stability <- format_df(fcrc_stability, "find_circ", "NonRandom")
-
-ciri_stability_random <- format_df(ciri_stability_random, "CIRI2", "Random")
-circ_stability_random <- format_df(circ_stability_random, "CIRCexplorer2", "Random")
-cfnd_stability_random <- format_df(cfnd_stability_random, "circRNA_finder", "Random")
-fcrc_stability_random <- format_df(fcrc_stability_random, "find_circ", "Random")
-
-
-transcript_stability <- format_df(transcript_stability[,c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")], "Isoforms")
-gene_stability <- format_df(gene_stability[,c("gcsi_ccle_spearman", "gcsi_gdsc_spearman", "gdsc_ccle_spearman")], "Gene Expression")
-gene_stability[is.na(gene_stability)] <- 0
-
-gene_stability_random <- format_df(gene_stability_random, "Gene Expression", "Random")
-transcript_stability_random <- format_df(isof_stability_random, "Isoforms", "Random")
-
 
 ############################################################
 # Plot stability index distribution
@@ -376,17 +293,15 @@ toPlot <- rbind(
     cfnd_stability_random,
     fcrc_stability_random
 )
-toPlot <- reshape2::melt(toPlot)
-toPlot$label <- factor(toPlot$label, levels = names(dataset_pal))
+toPlot$dataset <- factor(toPlot$dataset, levels = names(dataset_pal))
 
 # plot distribution of stability indices
 filename <- paste0("../results/figures/figure2/stability_", analysis, ".png")
 png(filename, width=250, height=200, units='mm', res = 600, pointsize=80)
-ggplot(toPlot, aes(x = label, y = value, fill = label)) +
-    geom_boxplot(data = toPlot, aes(alpha = random)) +
+ggplot(toPlot, aes(x = dataset, y = stability, fill = dataset, alpha = random)) +
     scale_fill_manual(values = dataset_pal) +
     scale_alpha_manual(values = c(1, 0.2)) +
-    facet_grid(factor(PSet)~.) +
+    facet_grid(factor(label)~.) +
     theme_classic() + labs(x = "", fill = "", y = "Stability Index", alpha = "Randomization") +
     theme(
         panel.border = element_rect(color = "black", fill = NA, linewidth = 0.3),
