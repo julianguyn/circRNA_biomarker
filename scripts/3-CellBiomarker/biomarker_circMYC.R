@@ -163,7 +163,15 @@ toPlot$to_label <- ifelse(toPlot$temp %in% top20, as.character(toPlot$Drug), "")
 # label by significance
 toPlot$Label <- ifelse(toPlot$FDR < 0.05, "FDR\nSignificant", "Not FDR\nSignificant")
 toPlot$Label <- factor(toPlot$Label, levels = c("FDR\nSignificant", "Not FDR\nSignificant"))
-toPlot$label <- factor(toPlot$label, levels = c(names(myc_pal)))
+toPlot$label <- factor(
+    toPlot$label, 
+    levels = c(
+        "CIRI_gCSI", "CIRI_CCLE", "CIRI_GDSC",
+        "CIRC_gCSI", "CIRC_CCLE", "CIRC_GDSC",
+        "CFND_gCSI", "CFND_CCLE", "CFND_GDSC",
+        "FCRC_gCSI", "FCRC_CCLE", "FCRC_GDSC"
+    )
+)
 
 png("../results/figures/figure3/myc_volcano.png", width = 6, height = 4, res = 600, units = "in")
 plot_volcano(toPlot)
@@ -192,8 +200,9 @@ sig_drug <- rbind(
     formatMYC(gdsc_sen, "FCRC_GDSC")
 )
 sig_drug$PSet <- gsub(".*_", "", sig_drug$Label)
-sig_drug$Pipeline <- rep(names(pipline_pal), each = nrow(sig_drug)/4)
-sig_drug$Pipeline <- factor(sig_drug$Pipeline, levels = names(pipline_pal))
+sig_drug$Pipeline <- rep(names(pipeline_pal), each = nrow(sig_drug)/4)
+sig_drug$Pipeline <- factor(sig_drug$Pipeline, levels = names(pipeline_pal))
+sig_drug$PSet[sig_drug$PSet=="GDSC"] <- "GDSC2"
 sig_drug$PSet <- factor(sig_drug$PSet, levels = names(pset_pal))
 sig_drug$Drug <- factor(sig_drug$Drug, levels = unique(rev(sig_drug$Drug[order(sig_drug$Drug)])))
 

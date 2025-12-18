@@ -114,7 +114,7 @@ format_bin <- function(bin_df, counts_df, drug_df) {
             df$Status[i] <- "NE"
         } else {
 
-            df$Diff[i] <- subset[subset$pair == pair,]$diff   # P-Val > 0.05
+            df$Diff[i] <- subset[subset$pair == pair,]$diff
             df$Status[i] <- ""
 
             # check p-value and FDR
@@ -150,14 +150,14 @@ formatMYC <- function(drug_df, label) {
             df$Status[i] <- "NE"
         } else {
 
-            df$Diff[i] <- subset[subset$Drug == drug,]$diff   # P-Val > 0.05
+            df$Diff[i] <- subset[subset$Drug == drug,]$diff 
             df$Status[i] <- ""
 
             # check p-value and FDR
-            if (subset[subset$Drug == drug,]$pval < 0.05) { #P-Val < 0.05
+            if (subset[subset$Drug == drug,]$FDR < 0.1) { #FDR < 0.1
                 df$Status[i] <- "*"
             }
-            if (subset[subset$Drug == drug,]$FDR < 0.1) { #FDR < 0.05
+            if (subset[subset$Drug == drug,]$FDR < 0.05) { #FDR < 0.05
                 df$Status[i] <- "**"
             }
         }
