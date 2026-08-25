@@ -40,10 +40,10 @@ gcsi_df <- load_counts(path, "gcsi_counts.tsv")
 ccle_df <- load_counts(path, "ccle_counts.tsv")
 gdsc_df <- load_counts(path, "gdsc_counts.tsv")
 
-save(
-    gcsi_df, ccle_df, gdsc_df,
-    file = "../results/data/biomarker_analysis_circ.RData"
-)
+#save(
+#    gcsi_df, ccle_df, gdsc_df,
+#    file = "../results/data/biomarker_analysis_circ.RData"
+#)
 
 ############################################################
 # Load in drug response data and subset
@@ -71,7 +71,7 @@ ccle_bin_dr <- binary_dr(ccle_df, ctrp_sen)
 gdsc_bin_dr <- binary_dr(gdsc_df, gdsc_sen)
 
 # save drug response associations
-dr_out <- "../results/data/bin_dr/circ_"
+dr_out <- "../results/data/bin_dr/FEB17_circ_"
 
 save(gcsi_bin_dr, file = paste0(dr_out, "gcsi_bin0.RData"))
 save(ccle_bin_dr, file = paste0(dr_out, "ccle_bin0.RData"))
