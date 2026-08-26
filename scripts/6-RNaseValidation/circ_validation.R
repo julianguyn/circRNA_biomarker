@@ -125,7 +125,7 @@ p2 <- plot_combined_counts(circ, "CIRCexplorer2")
 
 p <- p1 + p2 + plot_layout(guides = "collect")
 filename <- "results/figures/suppfig5/rnaseR_validation.png"
-ggsave(filename, p, width = 7, height = 4)
+ggsave(filename, p, width = 7, height = 3)
 
 
 ############################################################
