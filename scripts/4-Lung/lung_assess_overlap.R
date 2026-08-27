@@ -326,20 +326,23 @@ plot_manhattan <- function(toPlot, pipeline, sig_threshold = 0.05) {
       guides(color = "none") +
       geom_hline(yintercept = log2(5), linetype = "dashed", color = "black") +
       new_scale_color() +
-      geom_point(data = toPlot[which(log2(toPlot$count) > log2(5) & toPlot$label == "rRNA-depleted only"),], aes(x = bp_cum, y = log2(count), color = label), alpha = 0.6) +
-      geom_point(data = toPlot[which(log2(toPlot$count) > log2(5) & toPlot$label != "rRNA-depleted only"),], aes(x = bp_cum, y = log2(count), color = label), alpha = 0.6) +
+      #geom_point(data = toPlot[which(log2(toPlot$count) > log2(5) & toPlot$label == "rRNA-depleted only"),], aes(x = bp_cum, y = log2(count), color = label), alpha = 0.6) +
+      #geom_point(data = toPlot[which(log2(toPlot$count) > log2(5) & toPlot$label == "poly(A)-selection only"),], aes(x = bp_cum, y = log2(count), color = label), alpha = 0.6) +
+      #geom_point(data = toPlot[which(log2(toPlot$count) > log2(5) & toPlot$label == "Both"),], aes(x = bp_cum, y = log2(count), color = label), alpha = 0.6) +
+      geom_point(data = toPlot[which(log2(toPlot$count) > log2(5)),], aes(x = bp_cum, y = log2(count), color = label), alpha = 0.6) +
       scale_color_manual("", values = c(protocol_pal, pipeline_pal)) +
       labs(
         x = "Chromosome",
         y = expression(-log[2](Count)),
         title = pipeline
       ) +
-      theme_minimal() +
+      theme_bw() +
       theme(
         plot.title = element_text(hjust = 0.5), 
         panel.grid.major.x = element_blank(),
         panel.grid.minor.x = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8)
+        axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8),
+        legend.key.size = unit(5, "mm")
       )
     return(p)
 }
@@ -352,11 +355,11 @@ p4 <- plot_manhattan(fcrc, "find_circ")
 p5 <- plot_manhattan(polyA, "polyA")
 p6 <- plot_manhattan(ribo0, "ribo0")
 
-p1 <- (p1 + p2) / (p3 + p4) + plot_layout(guides = "collect")
+p1 <- (p1 / p2 / p3 / p4) + plot_layout(guides = "collect")
 p2 <- (p5 / p6)+ plot_layout(guides = "collect")
 
 filename <- "results/figures/suppfig5/overlap_protocol-count.png"
-ggsave(filename, p1, w=12, h=4)
+ggsave(filename, p1, w=6.5, h=8)
 
 filename <- "results/figures/suppfig5/overlap_pipeline-count.png"
 ggsave(filename, p2, w=6.5, h=4)
