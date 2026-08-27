@@ -10,7 +10,10 @@ pipeline_pal <- c(
     "CIRI2" = "#839788",
     "CIRCexplorer2" = "#BFD7EA",
     "circRNA_finder" = "#BA9790",
-    "find_circ" = "#D5BC8A"
+    "find_circ" = "#D5BC8A",
+    "All Pipelines" = "#00AFB5",
+    "Group1" = "#8A63AE",
+    "Group4" = "#E6A755"
 )
 
 dataset_pal <- c(
@@ -35,7 +38,7 @@ protocol_pal <- c(
     "both" = "#4D87BD",
     "poly(A)-selection only" = "#989FCE",
     "rRNA-depleted only" = "#5D536B",
-    "Common transcripts" = "#4D87BD"
+    "Both" = "#4D87BD"
 )
 
 binary_pal <- c(
