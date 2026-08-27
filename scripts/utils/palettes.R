@@ -32,7 +32,10 @@ prop_pal <- c(
 protocol_pal <- c(
     "polyA" = "#989FCE",
     "ribo0" = "#5D536B",
-    "both" = "#4D87BD"
+    "both" = "#4D87BD",
+    "poly(A)-selection only" = "#989FCE",
+    "rRNA-depleted only" = "#5D536B",
+    "Common transcripts" = "#4D87BD"
 )
 
 binary_pal <- c(

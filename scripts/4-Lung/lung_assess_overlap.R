@@ -2,9 +2,10 @@
 suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
-    library(ggpubr)
+    library(dplyr)
     library(viridis)
     library(reshape2)
+    library(ggnewscale)
     library(GenomicRanges)
     library(BSgenome.Hsapiens.UCSC.hg38)
 })
@@ -112,7 +113,7 @@ bin_enrichment <- function(transcripts, label, bin_size = 1e6) {
 # Assess overlap between protocols
 ############################################################
 
-transcript_region_enrichment <- function(polyA_df, ribo0_df) {
+transcript_region_enrichment_protocol <- function(polyA_df, ribo0_df) {
 
   # get transcripts
   common <- intersect(colnames(polyA_df), colnames(ribo0_df))
@@ -129,9 +130,134 @@ transcript_region_enrichment <- function(polyA_df, ribo0_df) {
   return(toPlot)
 }
 
-ciri <- transcript_region_enrichment(ciri_polyA, ciri_ribo0)
-circ <- transcript_region_enrichment(circ_polyA, circ_ribo0)
-cfnd <- transcript_region_enrichment(cfnd_polyA, cfnd_ribo0)
-fcrc <- transcript_region_enrichment(fcrc_polyA, fcrc_ribo0)
+ciri <- transcript_region_enrichment_protocol (ciri_polyA, ciri_ribo0)
+circ <- transcript_region_enrichment_protocol (circ_polyA, circ_ribo0)
+cfnd <- transcript_region_enrichment_protocol (cfnd_polyA, cfnd_ribo0)
+fcrc <- transcript_region_enrichment_protocol (fcrc_polyA, fcrc_ribo0)
 
 save(ciri, circ, cfnd, fcrc, file = "assess_overlap.RData")
+
+############################################################
+# Assess overlap between pipelines
+############################################################
+
+transcript_region_enrichment_pipeline <- function(ciri_df, circ_df, cfnd_df, fcrc_df) {
+
+  # isolate transcripts
+  ciri <- colnames(ciri_df)
+  circ <- colnames(circ_df)
+  cfnd <- colnames(cfnd_df)
+  fcrc <- colnames(fcrc_df)
+
+  # get common transcripts and remove from pool
+  common <- intersect(intersect(ciri, circ), intersect(cfnd, fcrc))
+  ciri <- ciri[-which(ciri %in% common)]
+  circ <- circ[-which(circ %in% common)]
+  cfnd <- cfnd[-which(cfnd %in% common)]
+  fcrc <- fcrc[-which(fcrc %in% common)]
+
+  # get transcripts in 3 pipelines
+  ov1 <- intersect(ciri, intesect(circ, cfnd))
+  ov2 <- intersect(ciri, intesect(circ, fcrc))
+  ov3 <- intersect(ciri, intesect(cfnd, fcrc))
+  ov4 <- intersect(circ, intesect(cfnd, fcrc))
+
+  # check genomic regions
+  toPlot <- rbind(
+    bin_enrichment(common, "Common transcripts"),
+    bin_enrichment(ov1, "Group1"),
+    bin_enrichment(ov2, "Group2"),
+    bin_enrichment(ov3, "Group3"),
+    bin_enrichment(ov4, "Group4")
+  )
+
+  return(toPlot)
+}
+
+polyA <- transcript_region_enrichment_pipeline(ciri_polyA, circ_polyA, cfnd_polyA, fcrc_polyA)
+ribo0 <- transcript_region_enrichment_pipeline(ciri_ribo0, circ_ribo0, cfnd_ribo0, fcrc_ribo0)
+
+save(polyA, ribo0, file = "assess_overlap_pipeline.RData")
+
+############################################################
+# Plot Manhattan plots
+############################################################
+
+load("results/data/assess_overlap.RData")
+
+toPlot <- ciri
+pipeline <- "CIRI2"
+
+plot_manhattan <- function(toPlot, pipeline, sig_threshold = 0.05) {
+
+    library(MASS)
+
+    # exlude bins above 99th percentile
+    fit_data <- toPlot[toPlot$count < quantile(toPlot$count, probs = c(0.99)), ]
+
+    # Estimate dispersion from your bin counts genome-wide
+    nb_fit_bg <- glm.nb(count ~ 1, data = fit_data)
+    mu <- exp(coef(nb_fit_bg))
+    theta <- nb_fit_bg$theta
+
+    # p-value per bin using negative binomial instead of Poisson
+    pvals_nb <- pnbinom(toPlot$count - 1, mu = mu, size = theta, lower.tail = FALSE)
+    toPlot$pval_nb <- pvals_nb
+    toPlot$padj_nb <- p.adjust(pvals_nb, method = "BH")
+
+    toPlot$chr <- factor(toPlot$chr, levels = c(paste0("chr", 1:22), "chrX", "chrY"))
+    toPlot <- toPlot[!is.na(toPlot$chr), ] 
+
+    # get cumulative genomic positions for x axis
+    data_cum <- toPlot %>%
+      group_by(chr) %>%
+      summarise(max_bp = as.numeric(max(end))) %>%
+      mutate(bp_add = lag(cumsum(max_bp), default = 0)) %>%
+      dplyr::select(chr, bp_add)
+
+    toPlot <- toPlot %>%
+      mutate(start = as.numeric(start)) %>%
+      left_join(data_cum, by = "chr") %>%
+      mutate(bp_cum = start + bp_add)
+
+    # centre axis labels
+    axis_set <- toPlot %>%
+      group_by(chr) %>%
+      summarise(center = mean(bp_cum))
+
+    # try making plot
+    ggplot() +
+      geom_point(data = toPlot, aes(x = bp_cum, y = -log10(padj_nb), color = chr)) +
+      scale_x_continuous(labels = axis_set$chr, breaks = axis_set$center) +
+      scale_color_manual(values = rep(c("#CCCCCC", "#ABA8A8"), length(unique(toPlot$chr)))) +
+      guides(color = "none") +
+      geom_hline(yintercept = -log10(sig_threshold), linetype = "dashed", color = "black") +
+      new_scale_color() +
+      geom_point(data = toPlot[toPlot$enriched == "Enriched",], aes(x = bp_cum, y = -log10(padj_nb), color = label)) +
+      scale_color_manual(values = protocol_pal) +
+      labs(
+        x = "Chromosome",
+        y = expression(-log[10](FDR)),
+        title = pipeline
+      ) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(hjust = 0.5), 
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8)
+      )
+
+}
+
+############################################################
+# Overlap with circBase
+############################################################
+
+# wget https://circbase.org/download/hg19_circID_to_name.txt
+# wget https://circbase.org/download/hsa_hg19_circRNA.txt
+# from https://circbase.org/cgi-bin/downloads.cgi
+
+# need to liftover
+
+# also look into https://academic.oup.com/nar/article/52/D1/D52/7280546
