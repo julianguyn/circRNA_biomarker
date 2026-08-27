@@ -191,13 +191,9 @@ transcript_region_enrichment_protocol <- function(polyA_df, ribo0_df) {
   return(toPlot)
 }
 
-message("%%%%%CIRI2")
 ciri <- transcript_region_enrichment_protocol (ciri_polyA, ciri_ribo0)
-message("%%%%%CIRCexplorer2")
 circ <- transcript_region_enrichment_protocol (circ_polyA, circ_ribo0)
-message("%%%%%circRNA_finder")
 cfnd <- transcript_region_enrichment_protocol (cfnd_polyA, cfnd_ribo0)
-message("%%%%%find_circ")
 fcrc <- transcript_region_enrichment_protocol (fcrc_polyA, fcrc_ribo0)
 
 save(ciri, circ, cfnd, fcrc, file = "../results/data/assess_overlap/overlap_protocol.RData")
@@ -239,9 +235,7 @@ transcript_region_enrichment_pipeline <- function(ciri_df, circ_df, cfnd_df, fcr
   return(toPlot)
 }
 
-message("%%%%%polyA")
 polyA <- transcript_region_enrichment_pipeline(ciri_polyA, circ_polyA, cfnd_polyA, fcrc_polyA)
-message("%%%%%ribo0")
 ribo0 <- transcript_region_enrichment_pipeline(ciri_ribo0, circ_ribo0, cfnd_ribo0, fcrc_ribo0)
 
 save(polyA, ribo0, file = "../results/data/assess_overlap/overlap_pipeline.RData")
