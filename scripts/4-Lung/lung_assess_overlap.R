@@ -7,6 +7,7 @@ suppressPackageStartupMessages({
     library(ggnewscale)
     library(GenomicRanges)
     library(BSgenome.Hsapiens.UCSC.hg38)
+    library(patchwork)
 })
 
 options(stringsAsFactors = FALSE)
@@ -128,6 +129,47 @@ bin_enrichment <- function(transcripts, label, bin_size = 1e6, n_perm = 10000) {
     return(results)
 }
 
+# v2: poisson distribution
+bin_enrichment <- function(transcripts, label, bin_size = 1e6) {
+    parsed <- do.call(rbind, strsplit(transcripts, "\\."))
+    gr <- GRanges(
+        seqnames = parsed[, 1],
+        ranges   = IRanges(start = as.numeric(parsed[, 2]),
+                            end   = as.numeric(parsed[, 3]))
+    )
+
+    seqlengths(gr) <- seqlengths(BSgenome.Hsapiens.UCSC.hg38)[seqlevels(gr)]
+    bins <- tileGenome(seqlengths(gr), tilewidth = bin_size, cut.last.tile.in.chrom = TRUE)
+
+    # count regions overlapping in bins
+    counts <- countOverlaps(bins, gr)
+
+    # set up null model
+    n_regions <- length(gr)
+    total_bins <- length(bins)
+    lambda <- n_regions / total_bins # expected count per bin (Poisson rate)
+
+    # poisson test per bin
+    pvals <- sapply(counts, function(x) {
+        poisson.test(x, r = lambda, alternative = "greater")$p.value
+    })
+    padj <- p.adjust(pvals, method = "BH")
+
+    # compile results
+    results <- data.frame(
+        chr = as.character(seqnames(bins)),
+        start = start(bins),
+        end = end(bins),
+        count = counts,
+        pval = pvals,
+        padj = padj,
+        label = label
+    )
+    results$enriched <- ifelse(results$padj < 0.05 & results$count > 0, "Enriched", "Not Enriched")
+    results <- results[order(results$padj),]
+    return(results)
+}
+
 ############################################################
 # Assess overlap between protocols
 ############################################################
@@ -138,11 +180,6 @@ transcript_region_enrichment_protocol <- function(polyA_df, ribo0_df) {
   common <- intersect(colnames(polyA_df), colnames(ribo0_df))
   polyA_only <- colnames(polyA_df)[-which(colnames(polyA_df) %in% common)]
   ribo0_only <- colnames(ribo0_df)[-which(colnames(ribo0_df) %in% common)]
-
-  # overlap with circbase
-  cat("Common in circbase:", length(common[common %in% cb]), "\n")
-  cat("polyA in circbase:", length(polyA_only[polyA_only %in% cb]), "\n")
-  cat("ribo0 in circbase:", length(ribo0_only[ribo0_only %in% cb]), "\n")
 
   # check genomic regions
   toPlot <- rbind(
@@ -190,13 +227,6 @@ transcript_region_enrichment_pipeline <- function(ciri_df, circ_df, cfnd_df, fcr
   ov3 <- intersect(ciri, intersect(cfnd, fcrc))
   ov4 <- intersect(circ, intersect(cfnd, fcrc))
 
-  # overlap with circbase
-  cat("Common in circbase:", length(common[common %in% cb]), "\n")
-  cat("OV1 in circbase:", length(ov1[ov1 %in% cb]), "\n")
-  cat("OV2 in circbase:", length(ov2[ov2 %in% cb]), "\n")
-  cat("OV3 in circbase:", length(ov3[ov3 %in% cb]), "\n")
-  cat("OV4 in circbase:", length(ov4[ov4 %in% cb]), "\n")
-
   # check genomic regions
   toPlot <- rbind(
     bin_enrichment(common, "All Pipelines"),
@@ -227,6 +257,7 @@ plot_manhattan <- function(toPlot, pipeline, sig_threshold = 0.05) {
 
     toPlot$chr <- factor(toPlot$chr, levels = c(paste0("chr", 1:22), "chrX", "chrY"))
     toPlot <- toPlot[!is.na(toPlot$chr), ] 
+    toPlot$padj <- ifelse(toPlot$padj < 1e-50, 1e-50, toPlot$padj)
 
     # get cumulative genomic positions for x axis
     data_cum <- toPlot %>%
@@ -247,13 +278,13 @@ plot_manhattan <- function(toPlot, pipeline, sig_threshold = 0.05) {
 
     # try making plot
     p <- ggplot() +
-      geom_point(data = toPlot, aes(x = bp_cum, y = -log10(padj), color = chr)) +
+      geom_point(data = toPlot, aes(x = bp_cum, y = -log10(padj), color = chr), alpha = 0.6) +
       scale_x_continuous(labels = axis_set$chr, breaks = axis_set$center) +
       scale_color_manual(values = rep(c("#CCCCCC", "#ABA8A8"), length(unique(toPlot$chr)))) +
       guides(color = "none") +
       geom_hline(yintercept = -log10(sig_threshold), linetype = "dashed", color = "black") +
       new_scale_color() +
-      geom_point(data = toPlot[toPlot$enriched == "Enriched",], aes(x = bp_cum, y = -log10(padj), color = label)) +
+      geom_point(data = toPlot[toPlot$enriched == "Enriched",], aes(x = bp_cum, y = -log10(padj), color = label), alpha = 0.6) +
       scale_color_manual("", values = c(protocol_pal, pipeline_pal)) +
       labs(
         x = "Chromosome",
@@ -270,10 +301,68 @@ plot_manhattan <- function(toPlot, pipeline, sig_threshold = 0.05) {
     return(p)
 }
 
-plot_manhattan(ciri, "CIRI2")
-plot_manhattan(circ, "CIRCexplorer2")
-plot_manhattan(cfnd, "circRNA_finder")
-plot_manhattan(fcrc, "find_circ")
+# v2: plot counts
+plot_manhattan <- function(toPlot, pipeline, sig_threshold = 0.05) {
 
-plot_manhattan(polyA, "polyA")
-plot_manhattan(ribo0, "ribo0")
+    toPlot$chr <- factor(toPlot$chr, levels = c(paste0("chr", 1:22), "chrX", "chrY"))
+    toPlot <- toPlot[!is.na(toPlot$chr), ] 
+
+    # get cumulative genomic positions for x axis
+    data_cum <- toPlot %>%
+      group_by(chr) %>%
+      summarise(max_bp = as.numeric(max(end))) %>%
+      mutate(bp_add = lag(cumsum(max_bp), default = 0)) %>%
+      dplyr::select(chr, bp_add)
+
+    toPlot <- toPlot %>%
+      mutate(start = as.numeric(start)) %>%
+      left_join(data_cum, by = "chr") %>%
+      mutate(bp_cum = start + bp_add)
+
+    # centre axis labels
+    axis_set <- toPlot %>%
+      group_by(chr) %>%
+      summarise(center = mean(bp_cum))
+
+    # try making plot
+    p <- ggplot() +
+      geom_point(data = toPlot, aes(x = bp_cum, y = log2(count), color = chr), alpha = 0.6) +
+      scale_x_continuous(labels = axis_set$chr, breaks = axis_set$center) +
+      scale_color_manual(values = rep(c("#CCCCCC", "#ABA8A8"), length(unique(toPlot$chr)))) +
+      guides(color = "none") +
+      geom_hline(yintercept = log2(5), linetype = "dashed", color = "black") +
+      new_scale_color() +
+      geom_point(data = toPlot[which(log2(toPlot$count) > log2(5) & toPlot$label == "rRNA-depleted only"),], aes(x = bp_cum, y = log2(count), color = label), alpha = 0.6) +
+      geom_point(data = toPlot[which(log2(toPlot$count) > log2(5) & toPlot$label != "rRNA-depleted only"),], aes(x = bp_cum, y = log2(count), color = label), alpha = 0.6) +
+      scale_color_manual("", values = c(protocol_pal, pipeline_pal)) +
+      labs(
+        x = "Chromosome",
+        y = expression(-log[2](Count)),
+        title = pipeline
+      ) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(hjust = 0.5), 
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8)
+      )
+    return(p)
+}
+
+p1 <- plot_manhattan(ciri, "CIRI2")
+p2 <- plot_manhattan(circ, "CIRCexplorer2")
+p3 <- plot_manhattan(cfnd, "circRNA_finder")
+p4 <- plot_manhattan(fcrc, "find_circ")
+
+p5 <- plot_manhattan(polyA, "polyA")
+p6 <- plot_manhattan(ribo0, "ribo0")
+
+p1 <- (p1 + p2) / (p3 + p4) + plot_layout(guides = "collect")
+p2 <- (p5 / p6)+ plot_layout(guides = "collect")
+
+filename <- "results/figures/suppfig5/overlap_protocol-count.png"
+ggsave(filename, p1, w=12, h=4)
+
+filename <- "results/figures/suppfig5/overlap_pipeline-count.png"
+ggsave(filename, p2, w=6.5, h=4)
