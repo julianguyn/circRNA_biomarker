@@ -14,7 +14,30 @@ set.seed(123)
 source("utils/palettes.R")
 
 args <- "circ"
-dir <- "../data/seqdepth_cellline/"
+
+# -----------------------------------------------------------
+# Parse args
+# -----------------------------------------------------------
+
+args <- commandArgs(trailingOnly = TRUE)
+analysis <- args[1]
+
+valid <- c("cpm", "unnorm")
+if (is.na(analysis) || !analysis %in% valid) {
+  stop(
+    sprintf("Invalid analysis argument '%s'. Must be one of: %s",
+            analysis, paste(valid, collapse = ", ")),
+    call. = FALSE
+  )
+}
+
+# get input dirs
+dir <- switch(
+  analysis,
+  cpm = "../data/processed_cellline/common_samples/",
+  unnorm = "../data/seqdepth_cellline/"
+)
+
 
 ############################################################
 # Load in circRNA expression data
@@ -48,9 +71,9 @@ fcrc_ccle <- load_counts(dir, "find_circ/fcrc_ccle_counts.tsv")
 # Load in circRNA read counts
 ############################################################
 
-gcsi_reads <- fread(paste0(dir, "readCounts/gcsi.tsv"), data.table = FALSE)
-ccle_reads <- fread(paste0(dir, "readCounts/ccle.tsv"), data.table = FALSE)
-gdsc_reads <- fread(paste0(dir, "readCounts/gdsc.tsv"), data.table = FALSE)
+gcsi_reads <- fread(paste0("../data/seqdepth_cellline/readCounts/gcsi.tsv"), data.table = FALSE)
+ccle_reads <- fread(paste0("../data/seqdepth_cellline/readCounts/ccle.tsv"), data.table = FALSE)
+gdsc_reads <- fread(paste0("../data/seqdepth_cellline/readCounts/gdsc.tsv"), data.table = FALSE)
 
 ############################################################
 # Count all transcripts
@@ -104,115 +127,84 @@ toPlot <- rbind(
 toPlot$Pipeline <- sub("_.*", "", toPlot$Label)
 toPlot$PSet <- sub(".*_", "", toPlot$Label)
 
-toPlot$Pipeline <- factor(toPlot$Pipeline, levels = c("ciri", "circ", "cfnd", "fcrc"), labels = names(pipeline_pal))
+toPlot$Pipeline <- factor(toPlot$Pipeline, levels = c("ciri", "circ", "cfnd", "fcrc"), labels = names(pipeline_pal)[1:4])
 toPlot$PSet <- factor(toPlot$PSet, levels = c("gcsi", "ccle", "gdsc"), labels = names(pset_pal))
 
+############################################################
+# Correlations (CPM and seqdepth)
+############################################################
 
+res <- data.frame(matrix(nrow=0, ncol=3))
+
+for (pset in unique(toPlot$PSet)) {
+    pset_df <- toPlot[toPlot$PSet == pset,]
+    for (pipeline in unique(pset_df$Pipeline)) {
+        subset_df <- pset_df[pset_df$Pipeline == pipeline,]
+        df <- data.frame(
+            pset = pset,
+            pipeline = pipeline,
+            corr = suppressWarnings(cor.test(subset_df$Count, subset_df$Seq_Depth, method = "spearman")$estimate)
+        )
+        res <- rbind(res, df)
+    }
+}
+
+res$pipeline <- factor(res$pipeline, levels = rev(names(pipeline_pal)[1:4]))
+res$pset <- factor(res$pset, levels = names(pset_pal)[1:3])
+p <- ggplot(res, aes(y = pipeline, x = pset, fill = corr)) +
+    geom_tile(color = "gray") +
+    geom_text(aes(label = round(corr, 2)), size = 4) +
+    scale_fill_gradient2("Spearman\nCorrelation", high = "blue", low = "red", mid = "white", limits = c(-1, 1)) +
+    theme_minimal() +
+    theme(
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 11)
+    )
+
+filename <- paste0("results/figures/suppfig5/", analysis, "_pset_correlations.png")
+ggsave(filename, p, width = 5, height = 3)
+
+
+
+############################################################
+# Load in lung seqdepth
+############################################################
+
+# load in metadata
+polyA_meta <- read.table("data/rnaseq_meta/lung_polyA.tsv", header = TRUE)
+ribo0_meta <- read.csv("data/rnaseq_meta/lung_ribozero.csv")
+
+# keep common 51 (and order)
+polyA_meta <- polyA_meta[match(ribo0_meta$TB_id, polyA_meta$TB_id), ]
+
+# load in seqdepth
+polyA_lib <- read.table("data/raw_lung/polyA.tsv", header = TRUE)
+polyA_lib <- polyA_lib[polyA_lib$sample %in% polyA_meta$sample,]
+ribo0_lib <- read.table("data/raw_lung/ribo0.tsv", header = TRUE)
 
 ############################################################
 # Plot
 ############################################################
 
-plot_seq_depth <- function(toPlot, pset) {
-
-    toPlot <- toPlot[toPlot$PSet == pset,]
-
-    toPlot$Seq_Depth <- as.numeric(toPlot$Seq_Depth)
-    toPlot <- toPlot[order(toPlot$Seq_Depth),]
-    toPlot$Sample <- factor(toPlot$Sample, levels = unique(toPlot$Sample))
-
-    p1 <- ggplot(toPlot, aes(x = Pipeline, y = Sample, fill = log2(Count))) +
-        geom_tile() +
-        scale_fill_viridis(limits=c(0, 16), option="mako", direction = -1) +
-        theme_minimal() +
-        ggtitle(pset)
-
-    p2 <- ggplot(toPlot, aes(x = Seq_Depth, y = Sample)) +
-        geom_bar(stat = "identity") +
-        theme_minimal() +
-        theme(
-            axis.title.y = element_blank()
-        ) +
-        xlim(c(0, 263170100)) +
-        labs(x = "Sequencing Depth")
-
-    p <- p1 + p2 + plot_layout(guides = "collect")
-    return(p)
-}
-
-plot_seq_depth(toPlot, "gCSI")
-plot_seq_depth(toPlot, "CCLE")
-plot_seq_depth(toPlot, "GDSC2")
-
-############################################################
-# Create list of unique transcripts (for venn diagram)
-############################################################
-
-# create list object of transcripts
-ciri_transcripts <- list(gCSI = colnames(ciri_gcsi), CCLE = colnames(ciri_ccle), GDSC2 = colnames(ciri_gdsc))
-circ_transcripts <- list(gCSI = colnames(circ_gcsi), CCLE = colnames(circ_ccle), GDSC2 = colnames(circ_gdsc))
-cfnd_transcripts <- list(gCSI = colnames(cfnd_gcsi), CCLE = colnames(cfnd_ccle), GDSC2 = colnames(cfnd_gdsc))
-fcrc_transcripts <- list(gCSI = colnames(fcrc_gcsi), CCLE = colnames(fcrc_ccle), GDSC2 = colnames(fcrc_gdsc))
-
-############################################################
-# Create proportion plots
-############################################################
-
+toPlot <- unique(toPlot[,c(2,6)])
 toPlot <- rbind(
-    count_prop(ciri_transcripts, "CIRI2"),
-    count_prop(circ_transcripts, "CIRCexplorer2"),
-    count_prop(cfnd_transcripts, "circRNA_finder"),
-    count_prop(fcrc_transcripts, "find_circ")
+    toPlot,
+    data.frame(Seq_Depth = polyA_lib$avg_counts, PSet = "polyA"),
+    data.frame(Seq_Depth = ribo0_lib$avg_counts, PSet = "ribo0")
 )
-toPlot$pipeline <- factor(toPlot$pipeline, levels = names(pipeline_pal))
 
-# proportion bar plot
-filename <- paste("../results/figures/figure1/proportion_pipelines_", analysis, ".png")
-png(filename, width=160, height=150, units='mm', res = 600, pointsize=80)
-ggplot(toPlot, aes(fill = Var1, y = Freq, x = pipeline)) + 
-  geom_bar(position = "fill", stat = "identity", color = "black") +
-  #geom_text(aes(label = ifelse(Var1 %in% c("gCSI only", "CCLE only", "GDSC2 only"), label, "")), position = position_fill(vjust = 0.5)) +
-  theme_classic() + 
-  theme(legend.key.size = unit(0.5, 'cm')) +
-  scale_fill_manual(values = prop_pal) +
-  labs(fill = "Category", x = "Pipeline", y = "Proportion of Unique Transcripts")
-dev.off()
+ggplot(toPlot, aes(x = PSet, y = Seq_Depth)) +
+    geom_violin() +
+    geom_boxplot(width = 0.1) +
+    geom_jitter(width = 0.2, alpha = 0.7) +
+    theme_bw() +
+    labs(y = "Average Read Counts", x = "Dataset")
 
+ggplot(toPlot[toPlot$PSet %in% c("polyA", "ribo0"),], aes(x = PSet, y = Seq_Depth)) +
+    geom_violin() +
+    geom_boxplot(width = 0.1) +
+    geom_jitter(width = 0.2, alpha = 0.7) +
+    theme_bw() +
+    labs(y = "Average Read Counts", x = "Dataset")
 
-############################################################
-# Plot abundance per dataset / pipeline
-############################################################
-
-# minor formating
-ciri_gdsc[is.na(ciri_gdsc)] <- 0
-circ_gdsc[is.na(circ_gdsc)] <- 0
-cfnd_gdsc[is.na(cfnd_gdsc)] <- 0
-fcrc_gdsc[is.na(fcrc_gdsc)] <- 0
-
-# create data frame of counts for plotting
-df <- data.frame(
-    Count = c(
-        sum(ciri_gcsi), sum(ciri_ccle), sum(ciri_gdsc),
-        sum(circ_gcsi), sum(circ_ccle), sum(circ_gdsc),
-        sum(cfnd_gcsi), sum(cfnd_ccle), sum(cfnd_gdsc),
-        sum(fcrc_gcsi), sum(fcrc_ccle), sum(fcrc_gdsc)
-    ),
-    PSet = c(rep(names(pset_pal), 4)),
-    Pipeline = c(names(pipeline_pal, each = 3)))
-df$Pipeline <- factor(df$Pipeline, levels = names(pipeline_pal))
-df$PSet <- factor(df$PSet, levels = names(pset_pal))
-
-# plot counts
-filename <- paste0("../results/figures/figure1/counts_", analysis, ".png")
-png(filename, width=150, height=100, units='mm', res = 600, pointsize=80)
-ggplot(df, aes(x = Pipeline, y = log2(Count), fill = PSet)) +
-    geom_bar(stat="identity", position = "dodge", color = "black") +
-    scale_fill_manual(values = pset_pal) + 
-    scale_y_continuous(limits = c(0, 13), expand=c(0,0)) +
-    theme_classic() +
-    theme(
-        panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-        legend.key.size = unit(0.4, 'cm')
-    ) + 
-    labs(y = "Log2 Normalized Counts")
-dev.off()

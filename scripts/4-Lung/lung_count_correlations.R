@@ -227,3 +227,53 @@ plot_rRNA_contamination <- function(toPlot, rRNA_df, label) {
 
 plot_rRNA_contamination(polyA_df, polyA_rRNA, "poly(A)-selection")
 plot_rRNA_contamination(ribo0_df, ribo0_rRNA, "rRNA-depletion")
+
+############################################################
+# Plot seqdepth and counts
+############################################################
+
+toPlot <- polyA_df
+lib_df <- polyA_lib
+label = "poly(A)-selection"
+
+plot_seqdepth <- function(toPlot, lib_df, label) {
+
+  lib_df <- lib_df[order(lib_df$avg_counts),]
+  lib_df$tumourID <- factor(lib_df$tumourID, levels = lib_df$tumourID)
+  toPlot$sample <- factor(toPlot$sample, levels = lib_df$tumourID)
+
+  p1 <- ggplot(toPlot, aes(x = pipeline, y = sample, fill = count)) + 
+    geom_tile() + 
+    theme_minimal() +
+    theme(
+          axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+          axis.text.y = element_blank(),
+          axis.title.x = element_blank(),
+          strip.text.x = element_text(size = 17),
+          legend.title = element_text(size = 10),
+          legend.key.size = unit(3, "mm")) +
+    scale_fill_viridis("log2(Counts)", limits=c(0, 13), option="mako", direction = -1) +
+    #guides(fill = guide_colourbar(barwidth = 0.8, barheight = 5, title = "log2(Counts + 1)")) +
+    labs(x = "\nProtocol", y = "Tumour Sample", title = label)
+
+
+  p2 <- ggplot() +
+      geom_col(data = lib_df, aes(x = avg_counts, y = tumourID), fill = "steelblue") +
+      labs(x = "Average Read Counts", y = "Sample") +
+      xlim(c(0, 78000000)) +
+      theme_bw() + 
+      theme(
+          axis.title.y = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.text.x = element_text(size = 8)
+      )
+
+  p <- p1 + p2 + plot_layout(width = c(1,2), guides = "collect")
+  filename <- paste0("results/figures/suppfig5/seqdepth_", label, ".png")
+  ggsave(filename, p, width = 4, height = 5)
+}
+
+
+plot_seqdepth(polyA_df, polyA_lib, "poly(A)-selection")
+plot_seqdepth(ribo0_df, ribo0_lib, "rRNA-depletion")
