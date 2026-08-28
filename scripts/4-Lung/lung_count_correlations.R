@@ -208,10 +208,11 @@ plot_rRNA_contamination <- function(toPlot, rRNA_df, label) {
 
 
   p2 <- ggplot() +
-      geom_col(data = summary_df, aes(x = mean_pct, y = tumourID), fill = "steelblue") +
-      geom_point(data = rRNA_df, aes(x = rRNA_Contamination_Pct, y = tumourID),
+      geom_col(data = summary_df, aes(x = log2(mean_pct+1), y = tumourID), fill = "steelblue") +
+      geom_point(data = rRNA_df, aes(x = log2(rRNA_Contamination_Pct+1), y = tumourID),
                   size = 1.5, color = "#4E598C", alpha = 0.8) +   
-      labs(x = "rRNA Contamination (%)", y = "Sample") +
+      labs(x = "log2+1 Normalized\nrRNA Contamination (%)", y = "Sample") +
+      xlim(c(0, 2)) +
       theme_bw() + 
       theme(
           axis.title.y = element_blank(),
