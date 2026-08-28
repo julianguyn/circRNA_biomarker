@@ -12,8 +12,10 @@ pipeline_pal <- c(
     "circRNA_finder" = "#BA9790",
     "find_circ" = "#D5BC8A",
     "All Pipelines" = "#00AFB5",
-    "Group1" = "#8A63AE",
-    "Group4" = "#E6A755"
+    "Group1" = "#9C7FB6",
+    "Group2" = "#8FC498",
+    "Group3" = "#FECEF1",
+    "Group4" = "#E1AF6E"
 )
 
 dataset_pal <- c(
