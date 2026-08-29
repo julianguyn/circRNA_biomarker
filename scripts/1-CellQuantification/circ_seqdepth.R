@@ -194,17 +194,14 @@ toPlot <- rbind(
     data.frame(Seq_Depth = ribo0_lib$avg_counts, PSet = "ribo0")
 )
 
-ggplot(toPlot, aes(x = PSet, y = Seq_Depth)) +
+
+toPlot <- toPlot[toPlot$PSet %in% c("gCSI", "CCLE", "GDSC2"),]
+p <- ggplot(toPlot, aes(x = PSet, y = Seq_Depth)) +
     geom_violin() +
     geom_boxplot(width = 0.1) +
     geom_jitter(width = 0.2, alpha = 0.7) +
     theme_bw() +
     labs(y = "Average Read Counts", x = "Dataset")
 
-ggplot(toPlot[toPlot$PSet %in% c("polyA", "ribo0"),], aes(x = PSet, y = Seq_Depth)) +
-    geom_violin() +
-    geom_boxplot(width = 0.1) +
-    geom_jitter(width = 0.2, alpha = 0.7) +
-    theme_bw() +
-    labs(y = "Average Read Counts", x = "Dataset")
-
+filename <- "results/figures/suppfig5/pset_seqdepth.png"
+ggsave(filename, p, width = 5, height = 4)
